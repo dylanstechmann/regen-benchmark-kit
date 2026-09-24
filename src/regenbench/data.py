@@ -19,6 +19,8 @@ class Dataset:
     groups: np.ndarray
     sha256: str
     group_columns: list[str]
+    task: str = "classification"
+    target_column: str = "label"
 
 
 def connected_groups(rows: list[dict[str, str]], columns: list[str]) -> np.ndarray:
@@ -52,7 +54,14 @@ def connected_groups(rows: list[dict[str, str]], columns: list[str]) -> np.ndarr
     return np.array([f"group-{root(i):06d}" for i in range(len(rows))])
 
 
-def load_table(path: str | Path, group_columns: list[str]) -> Dataset:
+def load_table(path: str | Path, group_columns: list[str], *, task="classification", target_column=None) -> Dataset:
+    if task not in {"classification", "regression"}:
+        raise ValueError("task must be classification or regression")
+    target_column = target_column or ("label" if task == "classification" else "target")
+    if target_column.startswith("f_") or target_column in group_columns:
+        raise ValueError("target must be separate from features and grouping columns")
+    if any(column.startswith("f_") for column in group_columns):
+        raise ValueError("grouping columns cannot also be features")
     path = Path(path)
     raw = path.read_bytes()
     with path.open(newline="", encoding="utf-8-sig") as handle:
@@ -60,7 +69,7 @@ def load_table(path: str | Path, group_columns: list[str]) -> Dataset:
         header = reader.fieldnames or []
         if len(header) != len(set(header)):
             raise ValueError("duplicate CSV columns")
-        required = {"sample_id", "label", *group_columns}
+        required = {"sample_id", target_column, *group_columns}
         if not required.issubset(header):
             raise ValueError(f"missing columns: {sorted(required - set(header))}")
         features = [c for c in header if c.startswith("f_")]
@@ -73,7 +82,7 @@ def load_table(path: str | Path, group_columns: list[str]) -> Dataset:
             rows.append({k: v.strip() for k, v in row.items()})
     if not rows:
         raise ValueError("empty dataset")
-    for column in ["sample_id", "label", *group_columns]:
+    for column in ["sample_id", target_column, *group_columns]:
         if any(not r[column] for r in rows):
             raise ValueError(f"blank {column}")
     for column in ["sample_id", "image_sha256"]:
@@ -87,8 +96,16 @@ def load_table(path: str | Path, group_columns: list[str]) -> Dataset:
         raise ValueError("all f_ columns must be numeric") from exc
     if not np.isfinite(x).all():
         raise ValueError("features must be finite; handle missing values explicitly upstream")
-    y = np.array([r["label"] for r in rows])
-    if len(set(y)) < 2:
+    if task == "regression":
+        try:
+            y = np.array([float(r[target_column]) for r in rows])
+        except ValueError as exc:
+            raise ValueError("regression targets must be numeric") from exc
+        if not np.isfinite(y).all():
+            raise ValueError("regression targets must be finite")
+    else:
+        y = np.array([r[target_column] for r in rows])
+    if task == "classification" and len(set(y)) < 2:
         raise ValueError("classification requires at least two labels")
     return Dataset(rows, features, x, y, connected_groups(rows, group_columns),
-                   hashlib.sha256(raw).hexdigest(), group_columns)
+                   hashlib.sha256(raw).hexdigest(), group_columns, task, target_column)

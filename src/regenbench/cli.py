@@ -8,6 +8,7 @@ import numpy as np
 
 from regenbench.benchmark import evaluate, save_results
 from regenbench.data import load_table
+from regenbench.regression import evaluate_regression, save_regression_results
 
 
 def write_demo(path, seed=0):
@@ -40,10 +41,22 @@ def main(argv=None):
     run.add_argument("--seed", type=int, default=0)
     run.add_argument("--bootstrap-draws", type=int, default=2000)
     run.add_argument("--out", required=True, help="new output directory (never overwrites results)")
+    regress = sub.add_parser("regress", help="whole-group regression; leave one group out by default")
+    regress.add_argument("csv")
+    regress.add_argument("--group-by", required=True)
+    regress.add_argument("--target", default="target")
+    regress.add_argument("--folds", type=int, help="use GroupKFold instead of leaving each whole group out")
+    regress.add_argument("--seed", type=int, default=0)
+    regress.add_argument("--out", required=True)
     args = parser.parse_args(argv)
     try:
         if args.command == "demo":
             write_demo(args.out, args.seed)
+        elif args.command == "regress":
+            data = load_table(args.csv, [c.strip() for c in args.group_by.split(",")],
+                              task="regression", target_column=args.target)
+            report, predictions = evaluate_regression(data, folds=args.folds, seed=args.seed)
+            save_regression_results(report, predictions, args.out)
         else:
             data = load_table(args.csv, [c.strip() for c in args.group_by.split(",")])
             report, predictions = evaluate(data, folds=args.folds, seed=args.seed,

@@ -3,12 +3,23 @@
 **Turn an annotated feature table into a reproducible, group-aware baseline.**
 This is the evaluation layer between a working demo and a research result:
 keep related donors, plates or batches together; fit preprocessing inside each
-training fold; compare a logistic model to a majority baseline; export every
+training fold; compare fixed classification or regression baselines; export every
 out-of-fold prediction and the exact input hash.
 
 It accepts numerical features from microscopy, organoid measurements or
 preprocessed expression summaries. It does not normalize raw RNA counts or
 establish that a phenotype is senescence, pluripotency or rejuvenation.
+
+## Real iPSC example
+
+The [NIST phase-image benchmark](examples/nist_ipsc/results/STUDY_REPORT.md)
+predicts fluorescence-derived nuclear area from nine fixed image descriptors.
+It uses 192 tiles from three source wells, leaving an entire well out each time.
+Ridge achieved **2.14 percentage-point MAE**, compared with **9.72** for the
+training-fold mean. The high-density well had larger errors (Ridge: **4.17 pp**).
+This is an exploratory measurement benchmark with three wells, not external
+biological validation. Data, provenance, every prediction, the analysis plan,
+and [rerun instructions](examples/nist_ipsc/README.md) are included.
 
 ## Run in five minutes
 
@@ -67,6 +78,8 @@ The tool cannot detect related samples when their metadata is missing or wrong.
 
 ## What is measured
 
+### Classification (`regenbench run`)
+
 - Stratified group cross-validation with a fixed seed and no hyperparameter search.
 - Fold-local standardization and class-weighted logistic regression (`C=1`).
 - Majority-class baseline trained independently in every fold.
@@ -77,6 +90,28 @@ The bootstrap conditions on already fitted out-of-fold predictions. It does
 not refit models or include uncertainty from model selection. Very few groups
 give weak intervals; fewer than three yield no interval. Pooled row metrics
 and equal-group metrics answer different questions when group sizes differ.
+
+### Regression (`regenbench regress`)
+
+```bash
+OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 regenbench regress \
+  examples/nist_ipsc/data/features.csv --target reference_nuclear_fraction \
+  --group-by source_well --seed 0 --out artifacts/nist
+```
+
+The target defaults to a numeric `target` column; `--target` selects another
+column. Only `f_*` columns enter predictors. Targets and grouping columns cannot
+also be feature columns. Targets must be finite, and at least two source groups
+are required. Leave-one-group-out is the default; `--folds N` uses GroupKFold.
+
+- Training-fold mean, standardized Ridge (`alpha=1`), and fixed histogram gradient boosting.
+- MAE, RMSE, R², signed error, per-group errors and equal-group MAE.
+- No target-range clipping; negative predictions remain visible.
+- No regression confidence intervals. Constant-target R² is reported as undefined.
+
+Regression uses the same connected grouping and input provenance as
+classification. The report records settings, versions, folds and unblocked
+metadata overlaps. Fixed models are baselines, not tuned recommendations.
 
 Repeated tuning against these folds turns them into development data. Reserve
 an external study or untouched test cohort for a final generalization claim.
@@ -100,4 +135,6 @@ and [data/model card](docs/DATA_MODEL_CARD.md).
 - [scikit-learn: grouped cross-validation](https://scikit-learn.org/stable/modules/cross_validation.html#cross-validation-iterators-for-grouped-data)
 - [scikit-learn: preprocessing and data leakage](https://scikit-learn.org/stable/common_pitfalls.html#data-leakage)
 
-MIT license. These are software benchmarks, not biological validation.
+Original code: MIT. NIST-derived example data retain their
+[source notice](examples/nist_ipsc/SOURCE_NOTICE.md). These benchmarks do not
+establish biological identity or clinical validity.

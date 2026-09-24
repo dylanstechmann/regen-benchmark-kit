@@ -6,7 +6,7 @@
 It has 30 artificial donors, 10 artificial batches, two artificial labels and
 three technical replicates per label per donor. The signal has an imposed
 label offset, donor shift and independent noise. The second feature is noise.
-There are no human records, licensed microscopy images or real assay results.
+This synthetic fixture contains no real observations.
 
 The software fixture is released under this repository's MIT license. It is
 for pipeline verification. Its accuracy cannot estimate performance on cells.
@@ -15,11 +15,21 @@ for pipeline verification. Its accuracy cannot estimate performance on cells.
 
 Small numerical feature tables with explicit independent experimental units.
 Baseline development, evaluation audits and reproducible collaborator handoffs.
-The default logistic model is deliberately fixed; it is not an optimized model.
+The classification and regression models are deliberately fixed; they are not optimized models.
+
+## Real microscopy example
+
+`examples/nist_ipsc` contains numerical features and nuclear-area targets derived
+from NIST iPSC phase images, with full source attribution and checksums. The
+analysis holds out each of three source wells, using 64 nonoverlapping tiles
+per well. It evaluates regression of a fluorescence-derived imaging measurement.
+It does not evaluate the synthetic morphology labels. See the complete
+[study-specific card](../examples/nist_ipsc/README.md) and
+[results](../examples/nist_ipsc/results/STUDY_REPORT.md).
 
 ## Not evaluated
 
-Real microscopy, external laboratories, real donors, segmentation quality,
+External laboratories, held-out donors, instance segmentation quality,
 biological identity, assay validity, clinical outcomes and prospective decisions.
 No trained biological model is distributed.
 
@@ -36,4 +46,6 @@ Do not choose groups or exclusions after inspecting favorable scores.
 The complete input hash, selected feature names, model settings, software
 versions, fold membership and predictions support reruns and independent review.
 Group metadata does not prove biological independence; it records the user's
-chosen assumptions. Confidence intervals are conditional development summaries.
+chosen assumptions. Classification confidence intervals are conditional
+development summaries. Regression reports no confidence interval, and the NIST
+example's three source wells cannot support a broad generalization claim.

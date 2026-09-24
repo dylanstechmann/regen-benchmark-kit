@@ -1,0 +1,249 @@
+{
+  "schema_version": 1,
+  "task": "regression",
+  "dataset_sha256": "e055bf31bc6d08594b9010625a779d027821c2333cb369e7247c011c81158645",
+  "n_samples": 192,
+  "n_groups": 3,
+  "group_metadata": {
+    "group-000000": {
+      "source_well": [
+        "training_low"
+      ]
+    },
+    "group-000064": {
+      "source_well": [
+        "training_medium"
+      ]
+    },
+    "group-000128": {
+      "source_well": [
+        "training_high"
+      ]
+    }
+  },
+  "configuration": {
+    "split": "leave_one_group_out",
+    "folds": 3,
+    "seed": 0,
+    "group_by": [
+      "source_well"
+    ],
+    "target": "reference_nuclear_fraction",
+    "features": [
+      "f_fg_fraction",
+      "f_n_components",
+      "f_largest_area_frac",
+      "f_largest_circularity",
+      "f_halo",
+      "f_interior_std",
+      "f_thin_fraction",
+      "f_small_component_frac",
+      "f_bright_near_fg"
+    ],
+    "ridge_alpha": 1.0,
+    "hist_gradient_boosting": {
+      "learning_rate": 0.05,
+      "max_iter": 100,
+      "max_leaf_nodes": 15,
+      "min_samples_leaf": 20,
+      "l2_regularization": 1.0,
+      "early_stopping": false
+    }
+  },
+  "environment": {
+    "python": "3.12.14",
+    "numpy": "2.3.5",
+    "scikit_learn": "1.8.0",
+    "regenbench": "0.2.0"
+  },
+  "models": {
+    "mean_baseline": {
+      "mae": 0.097246663334469,
+      "rmse": 0.11430676178682786,
+      "r2": -0.5974265317534988,
+      "mean_signed_error": 0.0,
+      "per_group": {
+        "group-000000": {
+          "mae": 0.10418460424989462,
+          "rmse": 0.10890587622323644,
+          "r2": -9.903800177067335,
+          "mean_signed_error": 0.10379186272621155
+        },
+        "group-000064": {
+          "mae": 0.060348737984895706,
+          "rmse": 0.06922646898184756,
+          "r2": -0.08732426475193922,
+          "mean_signed_error": 0.019618242979049683
+        },
+        "group-000128": {
+          "mae": 0.12720664776861668,
+          "rmse": 0.1501509689843067,
+          "r2": -2.0819568483328763,
+          "mean_signed_error": -0.12341010570526123
+        }
+      },
+      "equal_group_mae": 0.097246663334469
+    },
+    "ridge": {
+      "mae": 0.021444072406653216,
+      "rmse": 0.033013375608907866,
+      "r2": 0.8667531606912149,
+      "mean_signed_error": -0.013483241071930184,
+      "per_group": {
+        "group-000000": {
+          "mae": 0.009255374876686984,
+          "rmse": 0.0111820448013002,
+          "r2": 0.8850476874053459,
+          "mean_signed_error": -0.0037829883762363595
+        },
+        "group-000064": {
+          "mae": 0.013340281435567598,
+          "rmse": 0.01526375660407194,
+          "r2": 0.9471387311173649,
+          "mean_signed_error": 0.004653440810552833
+        },
+        "group-000128": {
+          "mae": 0.04173656090770506,
+          "rmse": 0.053959508111896856,
+          "r2": 0.6019787682749094,
+          "mean_signed_error": -0.04132017565010702
+        }
+      },
+      "equal_group_mae": 0.021444072406653216
+    },
+    "hist_gradient_boosting": {
+      "mae": 0.029246238971296228,
+      "rmse": 0.05281290446092676,
+      "r2": 0.6589978207112492,
+      "mean_signed_error": -0.02027778017317011,
+      "per_group": {
+        "group-000000": {
+          "mae": 0.010660480588224906,
+          "rmse": 0.013332290579257961,
+          "r2": 0.8365876791416453,
+          "mean_signed_error": 0.007216665861962776
+        },
+        "group-000064": {
+          "mae": 0.0062991257460001055,
+          "rmse": 0.008756521421910104,
+          "r2": 0.9826028563956045,
+          "mean_signed_error": 0.002729104198190565
+        },
+        "group-000128": {
+          "mae": 0.07077911057966367,
+          "rmse": 0.09007320352521493,
+          "r2": -0.10907647482948812,
+          "mean_signed_error": -0.07077911057966367
+        }
+      },
+      "equal_group_mae": 0.029246238971296228
+    }
+  },
+  "folds": [
+    {
+      "fold": 0,
+      "n_train": 128,
+      "n_test": 64,
+      "train_groups": [
+        "group-000064",
+        "group-000128"
+      ],
+      "test_groups": [
+        "group-000000"
+      ],
+      "models": {
+        "mean_baseline": {
+          "mae": 0.10418460424989462,
+          "rmse": 0.10890587622323644,
+          "r2": -9.903800177067335,
+          "mean_signed_error": 0.10379186272621155
+        },
+        "ridge": {
+          "mae": 0.009255374876686984,
+          "rmse": 0.0111820448013002,
+          "r2": 0.8850476874053459,
+          "mean_signed_error": -0.0037829883762363595
+        },
+        "hist_gradient_boosting": {
+          "mae": 0.010660480588224906,
+          "rmse": 0.013332290579257961,
+          "r2": 0.8365876791416453,
+          "mean_signed_error": 0.007216665861962776
+        }
+      }
+    },
+    {
+      "fold": 1,
+      "n_train": 128,
+      "n_test": 64,
+      "train_groups": [
+        "group-000000",
+        "group-000128"
+      ],
+      "test_groups": [
+        "group-000064"
+      ],
+      "models": {
+        "mean_baseline": {
+          "mae": 0.060348737984895706,
+          "rmse": 0.06922646898184756,
+          "r2": -0.08732426475193922,
+          "mean_signed_error": 0.019618242979049683
+        },
+        "ridge": {
+          "mae": 0.013340281435567598,
+          "rmse": 0.01526375660407194,
+          "r2": 0.9471387311173649,
+          "mean_signed_error": 0.004653440810552833
+        },
+        "hist_gradient_boosting": {
+          "mae": 0.0062991257460001055,
+          "rmse": 0.008756521421910104,
+          "r2": 0.9826028563956045,
+          "mean_signed_error": 0.002729104198190565
+        }
+      }
+    },
+    {
+      "fold": 2,
+      "n_train": 128,
+      "n_test": 64,
+      "train_groups": [
+        "group-000000",
+        "group-000064"
+      ],
+      "test_groups": [
+        "group-000128"
+      ],
+      "models": {
+        "mean_baseline": {
+          "mae": 0.12720664776861668,
+          "rmse": 0.1501509689843067,
+          "r2": -2.0819568483328763,
+          "mean_signed_error": -0.12341010570526123
+        },
+        "ridge": {
+          "mae": 0.04173656090770506,
+          "rmse": 0.053959508111896856,
+          "r2": 0.6019787682749094,
+          "mean_signed_error": -0.04132017565010702
+        },
+        "hist_gradient_boosting": {
+          "mae": 0.07077911057966367,
+          "rmse": 0.09007320352521493,
+          "r2": -0.10907647482948812,
+          "mean_signed_error": -0.07077911057966367
+        }
+      }
+    }
+  ],
+  "unblocked_overlap_counts": {},
+  "warnings": [
+    "Out-of-fold development benchmark; no hyperparameter selection was performed.",
+    "Models and scalers fit only on each training fold. Features must already be free of upstream leakage.",
+    "Grouping metadata defines the holdout; it does not establish biological independence.",
+    "No confidence interval is reported. Inspect the per-group results and the number of source groups.",
+    "Predictions are not clipped to a target range; out-of-range predictions remain visible.",
+    "Only 3 groups: results are exploratory and cannot establish broad generalization."
+  ]
+}

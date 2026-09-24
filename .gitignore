@@ -5,4 +5,7 @@ __pycache__/
 build/
 dist/
 artifacts/
+*.zip
+*.tif
+*.tiff
 test-results.txt

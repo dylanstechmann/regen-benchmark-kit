@@ -41,6 +41,18 @@ remote CI; a workflow file does not prove a successful CI run.
 
 ## Concrete next research milestones
 
+### Follow-through: real microscopy measurement benchmark
+
+The follow-up revision adds a checksum-pinned NIST iPSC importer to
+`brightfield-colony-qc` (17 tests total) and grouped regression to this toolkit
+(13 tests total). A [reproducible case study](../examples/nist_ipsc/README.md)
+uses 192 tiles from three source wells. Fixed Ridge achieved 2.14 pp nuclear-area
+MAE versus 9.72 pp for a training-fold mean, with worse performance on the
+high-density holdout (4.17 pp). The analysis plan, source terms, numerical data,
+all predictions and per-well results are committed. This is the first real
+microscopy measurement evaluation in these two repositories; three wells from
+one study do not satisfy the external-validation milestone below.
+
 | Priority | Deliverable | Evidence needed |
 |---|---|---|
 | 1 | Collaborator imaging benchmark | A permitted, annotated dataset with donor/plate/batch identifiers; fixed preprocessing; untouched external test set |
@@ -49,13 +61,15 @@ remote CI; a workflow file does not prove a successful CI run.
 | 4 | Senescence scoring comparison | Public or collaborator cohort with permission; tissue/cell-type stratification; confounder checks and orthogonal assay comparison |
 | 5 | Protocol review handoff | A domain expert checks every source, parameter and timing assumption; checksum ties comments to the reviewed version |
 
-The most useful next step is obtaining one well-described dataset and a lab
-partner's feedback. A paper-worthy biological result is not claimed by these
-synthetic examples. The software is a starting point for that collaboration.
+The most useful next step is a lab partner's review of the NIST case study and
+an untouched independent imaging dataset. The software and preliminary
+within-study results provide a concrete starting point for that collaboration;
+they do not yet establish a paper-worthy biological finding.
 
 ## Open limitations
 
-- Image features depend on image scale and illumination; no real colony model
+- Image features depend on image scale and illumination. The NIST result is
+  limited to nuclear area in three source wells; no biological QC classifier
   has been validated. Source hashes catch exact duplicates, not near duplicates.
 - The planner maximizes one response with a fixed GP and common noise scale.
   The old broad factor box is a synthetic search space, not a jointly validated

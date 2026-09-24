@@ -47,6 +47,8 @@ def group_accuracy_interval(y, pred, groups, *, seed=0, draws=2000):
 
 
 def evaluate(data: Dataset, *, folds=5, seed=0, bootstrap_draws=2000):
+    if data.task != "classification":
+        raise ValueError("use evaluate_regression for regression targets")
     if not isinstance(folds, int) or folds < 2 or folds > len(set(data.groups)):
         raise ValueError("folds must be between 2 and the number of independent groups")
     if not isinstance(bootstrap_draws, int) or bootstrap_draws < 100:

@@ -2,7 +2,7 @@ cff-version: 1.2.0
 message: "Please cite this software separately from any biological sources."
 title: "regen-benchmark-kit"
 type: software
-version: 0.1.0
+version: 0.2.0
 date-released: 2026-09-24
 license: MIT
 authors:

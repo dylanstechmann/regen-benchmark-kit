@@ -1,0 +1,6 @@
+# Recorded runtime for the 2026-09-24 example; install the two local packages separately.
+numpy==2.3.5
+scipy==1.17.0
+scikit-learn==1.8.0
+Pillow==12.3.0
+matplotlib==3.10.8
