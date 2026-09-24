@@ -1,0 +1,344 @@
+{
+  "schema_version": 1,
+  "dataset_sha256": "2a7b04d80008c1d2d8cd3e0aaaf1f0329eb029a333ba5242401a88c681476e93",
+  "configuration": {
+    "folds": 5,
+    "seed": 0,
+    "group_by": [
+      "donor_id",
+      "batch_id"
+    ],
+    "bootstrap_draws": 2000,
+    "features": [
+      "f_signal",
+      "f_nuisance"
+    ],
+    "logistic_C": 1.0,
+    "logistic_class_weight": "balanced"
+  },
+  "environment": {
+    "python": "3.12.14",
+    "numpy": "2.3.5",
+    "scikit_learn": "1.8.0",
+    "regenbench": "0.1.0"
+  },
+  "n_samples": 180,
+  "n_groups": 10,
+  "classes": [
+    "0",
+    "1"
+  ],
+  "models": {
+    "majority": {
+      "accuracy": 0.5,
+      "balanced_accuracy": 0.5,
+      "macro_f1": 0.3333333333333333,
+      "confusion_matrix": [
+        [
+          90,
+          0
+        ],
+        [
+          90,
+          0
+        ]
+      ],
+      "group_accuracy": {
+        "estimate": 0.5,
+        "n_groups": 10,
+        "ci95": [
+          0.5,
+          0.5
+        ],
+        "method": "equal-group accuracy; percentile group bootstrap of fixed OOF predictions"
+      }
+    },
+    "logistic": {
+      "accuracy": 0.8722222222222222,
+      "balanced_accuracy": 0.8722222222222222,
+      "macro_f1": 0.8721867185329257,
+      "confusion_matrix": [
+        [
+          77,
+          13
+        ],
+        [
+          10,
+          80
+        ]
+      ],
+      "group_accuracy": {
+        "estimate": 0.8722222222222221,
+        "n_groups": 10,
+        "ci95": [
+          0.8166666666666667,
+          0.9277777777777777
+        ],
+        "method": "equal-group accuracy; percentile group bootstrap of fixed OOF predictions"
+      }
+    }
+  },
+  "folds": [
+    {
+      "fold": 0,
+      "n_train": 144,
+      "n_test": 36,
+      "train_groups": [
+        "group-000000",
+        "group-000018",
+        "group-000054",
+        "group-000072",
+        "group-000090",
+        "group-000126",
+        "group-000144",
+        "group-000162"
+      ],
+      "test_groups": [
+        "group-000036",
+        "group-000108"
+      ],
+      "models": {
+        "majority": {
+          "accuracy": 0.5,
+          "balanced_accuracy": 0.5,
+          "macro_f1": 0.3333333333333333,
+          "confusion_matrix": [
+            [
+              18,
+              0
+            ],
+            [
+              18,
+              0
+            ]
+          ]
+        },
+        "logistic": {
+          "accuracy": 0.8333333333333334,
+          "balanced_accuracy": 0.8333333333333334,
+          "macro_f1": 0.8333333333333334,
+          "confusion_matrix": [
+            [
+              15,
+              3
+            ],
+            [
+              3,
+              15
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "fold": 1,
+      "n_train": 144,
+      "n_test": 36,
+      "train_groups": [
+        "group-000000",
+        "group-000018",
+        "group-000036",
+        "group-000054",
+        "group-000090",
+        "group-000108",
+        "group-000144",
+        "group-000162"
+      ],
+      "test_groups": [
+        "group-000072",
+        "group-000126"
+      ],
+      "models": {
+        "majority": {
+          "accuracy": 0.5,
+          "balanced_accuracy": 0.5,
+          "macro_f1": 0.3333333333333333,
+          "confusion_matrix": [
+            [
+              18,
+              0
+            ],
+            [
+              18,
+              0
+            ]
+          ]
+        },
+        "logistic": {
+          "accuracy": 0.7777777777777778,
+          "balanced_accuracy": 0.7777777777777778,
+          "macro_f1": 0.7777777777777778,
+          "confusion_matrix": [
+            [
+              14,
+              4
+            ],
+            [
+              4,
+              14
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "fold": 2,
+      "n_train": 144,
+      "n_test": 36,
+      "train_groups": [
+        "group-000000",
+        "group-000018",
+        "group-000036",
+        "group-000072",
+        "group-000090",
+        "group-000108",
+        "group-000126",
+        "group-000144"
+      ],
+      "test_groups": [
+        "group-000054",
+        "group-000162"
+      ],
+      "models": {
+        "majority": {
+          "accuracy": 0.5,
+          "balanced_accuracy": 0.5,
+          "macro_f1": 0.3333333333333333,
+          "confusion_matrix": [
+            [
+              18,
+              0
+            ],
+            [
+              18,
+              0
+            ]
+          ]
+        },
+        "logistic": {
+          "accuracy": 0.9166666666666666,
+          "balanced_accuracy": 0.9166666666666667,
+          "macro_f1": 0.916083916083916,
+          "confusion_matrix": [
+            [
+              15,
+              3
+            ],
+            [
+              0,
+              18
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "fold": 3,
+      "n_train": 144,
+      "n_test": 36,
+      "train_groups": [
+        "group-000018",
+        "group-000036",
+        "group-000054",
+        "group-000072",
+        "group-000090",
+        "group-000108",
+        "group-000126",
+        "group-000162"
+      ],
+      "test_groups": [
+        "group-000000",
+        "group-000144"
+      ],
+      "models": {
+        "majority": {
+          "accuracy": 0.5,
+          "balanced_accuracy": 0.5,
+          "macro_f1": 0.3333333333333333,
+          "confusion_matrix": [
+            [
+              18,
+              0
+            ],
+            [
+              18,
+              0
+            ]
+          ]
+        },
+        "logistic": {
+          "accuracy": 0.9722222222222222,
+          "balanced_accuracy": 0.9722222222222222,
+          "macro_f1": 0.9722007722007722,
+          "confusion_matrix": [
+            [
+              18,
+              0
+            ],
+            [
+              1,
+              17
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "fold": 4,
+      "n_train": 144,
+      "n_test": 36,
+      "train_groups": [
+        "group-000000",
+        "group-000036",
+        "group-000054",
+        "group-000072",
+        "group-000108",
+        "group-000126",
+        "group-000144",
+        "group-000162"
+      ],
+      "test_groups": [
+        "group-000018",
+        "group-000090"
+      ],
+      "models": {
+        "majority": {
+          "accuracy": 0.5,
+          "balanced_accuracy": 0.5,
+          "macro_f1": 0.3333333333333333,
+          "confusion_matrix": [
+            [
+              18,
+              0
+            ],
+            [
+              18,
+              0
+            ]
+          ]
+        },
+        "logistic": {
+          "accuracy": 0.8611111111111112,
+          "balanced_accuracy": 0.8611111111111112,
+          "macro_f1": 0.8610038610038611,
+          "confusion_matrix": [
+            [
+              15,
+              3
+            ],
+            [
+              2,
+              16
+            ]
+          ]
+        }
+      }
+    }
+  ],
+  "unblocked_overlap_counts": {},
+  "warnings": [
+    "OOF evaluation is development evidence. Reserve an external dataset for a final claim.",
+    "Group bootstrap intervals condition on fitted predictions and exclude model-selection uncertainty.",
+    "Only selected grouping columns are blocked; choose the units appropriate to the intended generalization."
+  ]
+}

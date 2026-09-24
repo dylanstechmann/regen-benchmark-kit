@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "regen-benchmark-kit"
+version = "0.1.0"
+description = "Group-aware baselines and provenance for regenerative-medicine feature tables."
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [{name = "Dylan Stechmann"}]
+dependencies = ["numpy>=1.24,<3", "scikit-learn>=1.4,<2"]
+
+[project.scripts]
+regenbench = "regenbench.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]

@@ -1,0 +1,79 @@
+# Regenerative computation portfolio review
+
+Review date: 2026-09-24. Scope: source and tests of the five recent Python
+projects; README/tree review of the atlas and educational applications.
+This is a software review, not a validation of biological claims in the cited
+papers or the older atlases.
+
+## Direction
+
+Build tools a collaborating laboratory can evaluate on its own data. Your
+CS/AI background fits evaluation design, imaging features, experiment history,
+analysis provenance and instrumentation measurements. These artifacts make a
+concrete collaboration offer; repository count alone does not establish research
+competence or experimental access.
+
+## Existing work and changes
+
+| Repository | What was present | This revision |
+|---|---|---|
+| [brightfield-colony-qc](https://github.com/dylanstechmann/brightfield-colony-qc) | Synthetic images, interpretable features, softmax baseline; 5 tests | Real image manifest import, optional PNG/TIFF, duplicate-image rejection, source hashes, benchmark-compatible feature table; 10 tests |
+| [diffmedia-loop](https://github.com/dylanstechmann/diffmedia-loop) | GP/EI simulation against a synthetic response; 3 tests | Candidate-table planner, observed/pending exclusion, immutable proposal output, input hashes, finite checks, uncertainty with flat readouts; 8 tests |
+| [senescence-module-score](https://github.com/dylanstechmann/senescence-module-score) | SenMayo-inspired control scoring and synthetic spike; 4 tests | Strict matrix/CSV validation, explicit control-gene mapping and seed, input digest, zero-variance effect-size handling; 8 tests |
+| [cell-protocol-compiler](https://github.com/dylanstechmann/cell-protocol-compiler) | Abridged published checklists and validators; 5 tests | Finite values, unique parameter names, final-feed-to-endpoint gap, canonical protocol digest; 8 tests |
+| [open-perfusion-rig](https://github.com/dylanstechmann/open-perfusion-rig) | Geometry, host simulator, Arduino sketch and carriage; 5 tests | Strict host commands, finite values, duration/rounding checks, completed-run flow reset, density-aware effective diameter and transport limitations; 9 tests |
+| [geroscience-compound-atlas](https://github.com/dylanstechmann/geroscience-compound-atlas) | Compound evidence, scaffold benchmark, molecule generation, dashboard | No code changes in this pass; use as a separate chemical-data portfolio project |
+| [anagen](https://github.com/dylanstechmann/anagen) | Hair/tooth research atlas | No changes; current biological and trial claims need their own source review |
+| [ReaperDelay](https://github.com/dylanstechmann/ReaperDelay) | Educational browser game | No changes; distinct from a research methods portfolio |
+
+## Two additions
+
+1. **Regen Benchmark Kit:** generic numerical-feature evaluation with held-out
+   groups, majority/logistic baselines, fold-local scaling, predictions, hashes
+   and conditional group-bootstrap summaries. Eight tests.
+2. **[Perfusion Calibration Lab](https://github.com/dylanstechmann/perfusion-calibration-lab):**
+   balance-trace slope fitting, independent-repeat summaries and drift diagnostics.
+   Seven tests. It analyzes measurements but does not control hardware.
+
+All seven Python repos include installation metadata and a GitHub Actions test
+matrix for Python 3.10 and 3.12. Local validation is recorded separately from
+remote CI; a workflow file does not prove a successful CI run.
+
+## Concrete next research milestones
+
+| Priority | Deliverable | Evidence needed |
+|---|---|---|
+| 1 | Collaborator imaging benchmark | A permitted, annotated dataset with donor/plate/batch identifiers; fixed preprocessing; untouched external test set |
+| 2 | One complete prospective planning round | Reviewed candidate list, recorded proposals and pending IDs, returned assay measurements, predefined objective and budget |
+| 3 | Pump measurement report | Independent physical repeat runs, fluid conditions, balance specification, timing method and uncertainty budget |
+| 4 | Senescence scoring comparison | Public or collaborator cohort with permission; tissue/cell-type stratification; confounder checks and orthogonal assay comparison |
+| 5 | Protocol review handoff | A domain expert checks every source, parameter and timing assumption; checksum ties comments to the reviewed version |
+
+The most useful next step is obtaining one well-described dataset and a lab
+partner's feedback. A paper-worthy biological result is not claimed by these
+synthetic examples. The software is a starting point for that collaboration.
+
+## Open limitations
+
+- Image features depend on image scale and illumination; no real colony model
+  has been validated. Source hashes catch exact duplicates, not near duplicates.
+- The planner maximizes one response with a fixed GP and common noise scale.
+  The old broad factor box is a synthetic search space, not a jointly validated
+  experimental region. The collaborator-supplied candidate list remains essential.
+- Senescence controls are selected from the supplied cohort. Scores are not a
+  biological-age measure, a validated classifier, or directly comparable across
+  unrelated cohorts. They are not fold-independent supervised features by default.
+- Protocol validation checks encoded consistency. It does not verify citations,
+  establish biological correctness, or rewrite narrative steps when parameters
+  are changed programmatically.
+- The firmware is not queued, independently hardware-validated, or certified.
+  It has no verified occlusion detection or closed-loop delivery measurement.
+  Host-side validation does not harden commands sent directly to the board.
+
+## Method references
+
+The grouped evaluation and fold-local preprocessing design follows the
+[scikit-learn grouped validation guidance](https://scikit-learn.org/stable/modules/cross_validation.html#cross-validation-iterators-for-grouped-data)
+and [data leakage guidance](https://scikit-learn.org/stable/common_pitfalls.html#data-leakage).
+Biological references remain attached to their original repositories; this
+review does not claim to have revalidated their contents.
