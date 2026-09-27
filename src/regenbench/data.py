@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import csv
 import hashlib
+import io
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -64,7 +65,8 @@ def load_table(path: str | Path, group_columns: list[str], *, task="classificati
         raise ValueError("grouping columns cannot also be features")
     path = Path(path)
     raw = path.read_bytes()
-    with path.open(newline="", encoding="utf-8-sig") as handle:
+    # Parse the same snapshot recorded by the report's input hash.
+    with io.StringIO(raw.decode("utf-8-sig"), newline="") as handle:
         reader = csv.DictReader(handle)
         header = reader.fieldnames or []
         if len(header) != len(set(header)):

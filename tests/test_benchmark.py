@@ -1,7 +1,9 @@
 import csv
+import hashlib
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 import numpy as np
 
@@ -50,6 +52,24 @@ class BenchmarkTests(unittest.TestCase):
         data = load_table(self.path, ["donor_id"])
         self.assertEqual(data.features, ["f_signal", "f_nuisance"])
         self.assertEqual(data.x.shape[1], 2)
+
+    def test_input_hash_identifies_the_parsed_snapshot(self):
+        original = self.path.read_bytes()
+        read_bytes = Path.read_bytes
+        reads = []
+
+        def replace_after_read(path):
+            data = read_bytes(path)
+            reads.append(path)
+            path.write_text("changed after reading\n", encoding="utf-8")
+            return data
+
+        with patch.object(Path, "read_bytes", replace_after_read):
+            data = load_table(self.path, ["donor_id", "batch_id"])
+        self.assertEqual(reads, [self.path])
+        self.assertEqual(data.sha256, hashlib.sha256(original).hexdigest())
+        self.assertGreater(len(data.rows), 10)
+        self.assertNotEqual(self.path.read_bytes(), original)
 
     def test_reject_malformed_and_nonfinite_tables(self):
         for body in ["sample_id,label,group_id,f_x\na,A,g,nan\nb,B,h,1\n",

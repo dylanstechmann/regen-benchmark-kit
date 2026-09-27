@@ -5,6 +5,8 @@ This is the evaluation layer between a working demo and a research result:
 keep related donors, plates or batches together; fit preprocessing inside each
 training fold; compare fixed classification or regression baselines; export every
 out-of-fold prediction and the exact input hash.
+The loader parses the same CSV bytes it hashes, so a file changed during
+loading cannot produce a report whose hash identifies different input data.
 
 It accepts numerical features from microscopy, organoid measurements or
 preprocessed expression summaries. It does not normalize raw RNA counts or
