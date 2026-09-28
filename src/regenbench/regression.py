@@ -10,7 +10,7 @@ from pathlib import Path
 import numpy as np
 import sklearn
 from sklearn.dummy import DummyRegressor
-from sklearn.ensemble import HistGradientBoostingRegressor
+from sklearn.ensemble import HistGradientBoostingRegressor, RandomForestRegressor
 from sklearn.linear_model import Ridge
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from sklearn.model_selection import GroupKFold, LeaveOneGroupOut
@@ -18,7 +18,7 @@ from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 
 from regenbench import __version__
-from regenbench.data import Dataset
+from regenbench.data import Dataset, extract_feature_importances
 
 
 def regression_metrics(y, predictions):
@@ -48,6 +48,8 @@ def evaluate_regression(data: Dataset, *, folds=None, seed=0):
         "hist_gradient_boosting": lambda: HistGradientBoostingRegressor(
             learning_rate=0.05, max_iter=100, max_leaf_nodes=15, min_samples_leaf=20,
             l2_regularization=1.0, early_stopping=False, random_state=seed),
+        "random_forest": lambda: RandomForestRegressor(
+            n_estimators=100, max_depth=5, random_state=seed),
     }
     predictions = {name: np.full(len(data.y), np.nan) for name in factory}
     fold_ids = np.full(len(data.y), -1)
@@ -58,12 +60,16 @@ def evaluate_regression(data: Dataset, *, folds=None, seed=0):
         fold_ids[test] = fold
         record = {"fold": fold, "n_train": len(train), "n_test": len(test),
                   "train_groups": sorted(set(data.groups[train])),
-                  "test_groups": sorted(set(data.groups[test])), "models": {}}
+                  "test_groups": sorted(set(data.groups[test])), "models": {},
+                  "feature_importances": {}}
         for name, create in factory.items():
             model = create().fit(data.x[train], data.y[train])
             pred = model.predict(data.x[test])
             record["models"][name] = regression_metrics(data.y[test], pred)
             predictions[name][test] = pred
+            imp = extract_feature_importances(model, data.features)
+            if imp is not None:
+                record["feature_importances"][name] = imp
         records.append(record)
     group_metadata = {str(group): {column: sorted({row[column] for i, row in enumerate(data.rows)
                                                    if data.groups[i] == group})
@@ -94,6 +100,12 @@ def evaluate_regression(data: Dataset, *, folds=None, seed=0):
     for column, counts in overlaps.items():
         if any(counts):
             warnings.append(f"Unblocked {column} overlaps train/test; this is not a held-out-{column} result.")
+    mean_importances = {}
+    for name in factory:
+        fold_imps = [r["feature_importances"][name] for r in records if name in r.get("feature_importances", {})]
+        if fold_imps:
+            mean_importances[name] = {feat: round(float(np.mean([fi[feat] for fi in fold_imps])), 6)
+                                      for feat in data.features}
     report = {"schema_version": 1, "task": "regression", "dataset_sha256": data.sha256,
               "n_samples": len(data.y), "n_groups": n_groups, "group_metadata": group_metadata,
               "configuration": {"split": "leave_one_group_out" if folds is None else "group_k_fold",
@@ -102,11 +114,12 @@ def evaluate_regression(data: Dataset, *, folds=None, seed=0):
                                 "ridge_alpha": 1.0,
                                 "hist_gradient_boosting": {"learning_rate": 0.05, "max_iter": 100,
                                     "max_leaf_nodes": 15, "min_samples_leaf": 20,
-                                    "l2_regularization": 1.0, "early_stopping": False}},
+                                    "l2_regularization": 1.0, "early_stopping": False},
+                                "random_forest": {"n_estimators": 100, "max_depth": 5}},
               "environment": {"python": platform.python_version(), "numpy": np.__version__,
                               "scikit_learn": sklearn.__version__, "regenbench": __version__},
-              "models": models, "folds": records, "unblocked_overlap_counts": overlaps,
-              "warnings": warnings}
+              "models": models, "folds": records, "mean_feature_importances": mean_importances,
+              "unblocked_overlap_counts": overlaps, "warnings": warnings}
     rows = [{"sample_id": row["sample_id"], "target": float(data.y[i]),
              "group": str(data.groups[i]), "fold": int(fold_ids[i]),
              **{name: float(pred[i]) for name, pred in predictions.items()}}
@@ -122,6 +135,16 @@ def save_regression_results(report, predictions, output):
         writer = csv.DictWriter(handle, fieldnames=list(predictions[0]), lineterminator="\n")
         writer.writeheader()
         writer.writerows(predictions)
+    importance_rows = []
+    for f in report.get("folds", []):
+        for mod, imps in f.get("feature_importances", {}).items():
+            for feat, val in imps.items():
+                importance_rows.append({"fold": f["fold"], "model": mod, "feature": feat, "importance": val})
+    if importance_rows:
+        with (output / "feature_importances.csv").open("w", newline="") as handle:
+            writer = csv.DictWriter(handle, fieldnames=["fold", "model", "feature", "importance"], lineterminator="\n")
+            writer.writeheader()
+            writer.writerows(importance_rows)
     lines = ["# Grouped regression benchmark", "", f"Input SHA-256: `{report['dataset_sha256']}`", "",
              f"{report['n_samples']} rows / {report['n_groups']} source groups.", "",
              "Target: `" + report["configuration"]["target"] + "`. Errors are in the target's units.", "",
@@ -137,5 +160,12 @@ def save_regression_results(report, predictions, output):
             score = model["per_group"][group]
             r2 = "undefined" if score["r2"] is None else f"{score['r2']:.4f}"
             lines.append(f"| {label} | {name} | {score['mae']:.4f} | {r2} |")
+    if report.get("mean_feature_importances"):
+        lines.extend(["", "## Feature importances (mean across folds)", "",
+                      "| Model | Top features |", "|---|---|"])
+        for mod, imps in report["mean_feature_importances"].items():
+            top = sorted(imps.items(), key=lambda kv: kv[1], reverse=True)[:5]
+            top_str = ", ".join(f"{k}: {v:.4f}" for k, v in top)
+            lines.append(f"| {mod} | {top_str} |")
     lines.extend(["", "## Interpretation", "", *[f"- {w}" for w in report["warnings"]], ""])
     (output / "REPORT.md").write_text("\n".join(lines))

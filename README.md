@@ -91,9 +91,11 @@ The tool cannot detect related samples when their metadata is missing or wrong.
 
 - Stratified group cross-validation with a fixed seed and no hyperparameter search.
 - Fold-local standardization and class-weighted logistic regression (`C=1`).
+- Random forest classifier baseline (`n_estimators=100`, `max_depth=5`, balanced subsampling).
 - Majority-class baseline trained independently in every fold.
 - Accuracy, balanced accuracy, macro F1 and class-ordered confusion matrices.
 - Equal-group-weighted accuracy with a 95% percentile bootstrap over whole groups.
+- Per-fold feature importance tracking and CSV export (`feature_importances.csv`) for tree ensembles and standardized linear coefficients.
 
 The bootstrap conditions on already fitted out-of-fold predictions. It does
 not refit models or include uncertainty from model selection. Very few groups
@@ -113,8 +115,9 @@ column. Only `f_*` columns enter predictors. Targets and grouping columns cannot
 also be feature columns. Targets must be finite, and at least two source groups
 are required. Leave-one-group-out is the default; `--folds N` uses GroupKFold.
 
-- Training-fold mean, standardized Ridge (`alpha=1`), and fixed histogram gradient boosting.
+- Training-fold mean, standardized Ridge (`alpha=1`), fixed histogram gradient boosting, and random forest regressor (`n_estimators=100`, `max_depth=5`).
 - MAE, RMSE, R², signed error, per-group errors and equal-group MAE.
+- Per-fold feature importance export (`feature_importances.csv`) and top feature summary in `REPORT.md`.
 - No target-range clipping; negative predictions remain visible.
 - No regression confidence intervals. Constant-target R² is reported as undefined.
 

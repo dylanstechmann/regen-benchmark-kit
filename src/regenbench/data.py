@@ -116,3 +116,24 @@ def load_table(path: str | Path, group_columns: list[str], *, task="classificati
         raise ValueError("classification requires at least two labels")
     return Dataset(rows, features, x, y, connected_groups(rows, group_columns),
                    hashlib.sha256(raw).hexdigest(), group_columns, task, target_column)
+
+
+def extract_feature_importances(model, feature_names: list[str]) -> dict[str, float] | None:
+    """Extract per-feature importance or absolute standardized coefficients from a fitted model."""
+    estimator = model.steps[-1][1] if hasattr(model, "steps") else model
+    importances = None
+    if hasattr(estimator, "feature_importances_"):
+        importances = np.asarray(estimator.feature_importances_, dtype=float)
+    elif hasattr(estimator, "coef_"):
+        coef = np.asarray(estimator.coef_, dtype=float)
+        if coef.ndim == 1:
+            importances = np.abs(coef)
+        elif coef.ndim == 2:
+            importances = np.mean(np.abs(coef), axis=0)
+    if importances is not None and len(importances) == len(feature_names):
+        clean_imps = {}
+        for feat, imp in zip(feature_names, importances.flat):
+            val = float(imp)
+            clean_imps[feat] = 0.0 if not np.isfinite(val) else round(val, 6)
+        return clean_imps
+    return None

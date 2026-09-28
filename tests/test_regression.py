@@ -95,6 +95,34 @@ class RegressionTests(unittest.TestCase):
         with self.assertRaises(FileExistsError):
             save_regression_results(report, rows, out)
 
+    def test_random_forest_regression_and_feature_importances(self):
+        data = load_table(self.path, ["source_well"], task="regression")
+        report, rows = evaluate_regression(data, folds=2)
+        self.assertIn("random_forest", report["models"])
+        self.assertLess(report["models"]["random_forest"]["mae"], 200)
+        self.assertIn("mean_feature_importances", report)
+        self.assertIn("random_forest", report["mean_feature_importances"])
+        self.assertIn("f_signal", report["mean_feature_importances"]["random_forest"])
+
+        # Per-fold feature importances
+        for fold in report["folds"]:
+            self.assertIn("feature_importances", fold)
+            self.assertIn("random_forest", fold["feature_importances"])
+            self.assertIn("ridge", fold["feature_importances"])
+
+        # Verify export to disk
+        out = Path(self.tmp.name) / "rf_regression_results"
+        save_regression_results(report, rows, out)
+        self.assertTrue((out / "feature_importances.csv").exists())
+        with (out / "feature_importances.csv").open() as f:
+            reader = list(csv.DictReader(f))
+            self.assertGreater(len(reader), 0)
+            self.assertIn("fold", reader[0])
+            self.assertIn("model", reader[0])
+            self.assertIn("feature", reader[0])
+            self.assertIn("importance", reader[0])
+
 
 if __name__ == "__main__":
     unittest.main()
+

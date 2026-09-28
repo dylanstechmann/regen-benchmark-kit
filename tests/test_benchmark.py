@@ -137,6 +137,34 @@ class BenchmarkTests(unittest.TestCase):
             expected = data.x[np.isin(data.groups, fold["train_groups"])]
             np.testing.assert_array_equal(fitted, expected)
 
+    def test_random_forest_and_per_fold_feature_importance_export(self):
+        data = load_table(self.path, ["donor_id"])
+        report, rows = evaluate(data, folds=3, bootstrap_draws=100)
+        self.assertIn("random_forest", report["models"])
+        self.assertGreater(report["models"]["random_forest"]["balanced_accuracy"], 0.6)
+        self.assertIn("mean_feature_importances", report)
+        self.assertIn("random_forest", report["mean_feature_importances"])
+        self.assertIn("f_signal", report["mean_feature_importances"]["random_forest"])
+
+        # Check per-fold importances
+        for fold in report["folds"]:
+            self.assertIn("feature_importances", fold)
+            self.assertIn("random_forest", fold["feature_importances"])
+            self.assertIn("f_signal", fold["feature_importances"]["random_forest"])
+
+        # Verify export to disk
+        out = Path(self.tmp.name) / "rf_results"
+        save_results(report, rows, out)
+        self.assertTrue((out / "feature_importances.csv").exists())
+        with (out / "feature_importances.csv").open() as f:
+            reader = list(csv.DictReader(f))
+            self.assertGreater(len(reader), 0)
+            self.assertIn("fold", reader[0])
+            self.assertIn("model", reader[0])
+            self.assertIn("feature", reader[0])
+            self.assertIn("importance", reader[0])
+
 
 if __name__ == "__main__":
     unittest.main()
+

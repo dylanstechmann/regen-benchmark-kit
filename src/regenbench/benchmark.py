@@ -10,6 +10,7 @@ from pathlib import Path
 import numpy as np
 import sklearn
 from sklearn.dummy import DummyClassifier
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score, balanced_accuracy_score, confusion_matrix, f1_score
 from sklearn.model_selection import StratifiedGroupKFold
@@ -17,7 +18,7 @@ from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 
 from regenbench import __version__
-from regenbench.data import Dataset
+from regenbench.data import Dataset, extract_feature_importances
 
 
 def metrics(y, pred, classes):
@@ -64,7 +65,9 @@ def evaluate(data: Dataset, *, folds=5, seed=0, bootstrap_draws=2000):
             raise ValueError("a fold lacks a class; collect more independent groups or reduce --folds")
     models = {"majority": lambda: DummyClassifier(strategy="most_frequent"),
               "logistic": lambda: make_pipeline(StandardScaler(), LogisticRegression(
-                  C=1.0, max_iter=2000, class_weight="balanced", random_state=seed))}
+                  C=1.0, max_iter=2000, class_weight="balanced", random_state=seed)),
+              "random_forest": lambda: RandomForestClassifier(
+                  n_estimators=100, max_depth=5, class_weight="balanced_subsample", random_state=seed)}
     predictions = {name: np.empty(len(data.y), dtype=object) for name in models}
     fold_ids = np.full(len(data.y), -1)
     fold_reports = []
@@ -72,12 +75,16 @@ def evaluate(data: Dataset, *, folds=5, seed=0, bootstrap_draws=2000):
         fold_ids[test] = fold
         record = {"fold": fold, "n_train": len(train), "n_test": len(test),
                   "train_groups": sorted(set(data.groups[train])),
-                  "test_groups": sorted(set(data.groups[test])), "models": {}}
+                  "test_groups": sorted(set(data.groups[test])), "models": {},
+                  "feature_importances": {}}
         for name, factory in models.items():
             model = factory().fit(data.x[train], data.y[train])
             pred = model.predict(data.x[test])
             predictions[name][test] = pred
             record["models"][name] = metrics(data.y[test], pred, classes)
+            imp = extract_feature_importances(model, data.features)
+            if imp is not None:
+                record["feature_importances"][name] = imp
         fold_reports.append(record)
     warnings = [
         "OOF evaluation is development evidence. Reserve an external dataset for a final claim.",
@@ -95,16 +102,23 @@ def evaluate(data: Dataset, *, folds=5, seed=0, bootstrap_draws=2000):
             overlaps[column] = counts
             if any(counts):
                 warnings.append(f"Unblocked {column} values overlap train/test; this is not a held-out-{column} result.")
+    mean_importances = {}
+    for name in models:
+        fold_imps = [f["feature_importances"][name] for f in fold_reports if name in f.get("feature_importances", {})]
+        if fold_imps:
+            mean_importances[name] = {feat: round(float(np.mean([fi[feat] for fi in fold_imps])), 6)
+                                      for feat in data.features}
     report = {
         "schema_version": 1, "dataset_sha256": data.sha256,
         "configuration": {"folds": folds, "seed": seed, "group_by": data.group_columns,
                           "bootstrap_draws": bootstrap_draws, "features": data.features,
-                          "logistic_C": 1.0, "logistic_class_weight": "balanced"},
+                          "logistic_C": 1.0, "logistic_class_weight": "balanced",
+                          "random_forest": {"n_estimators": 100, "max_depth": 5}},
         "environment": {"python": platform.python_version(), "numpy": np.__version__,
                         "scikit_learn": sklearn.__version__, "regenbench": __version__},
         "n_samples": len(data.y), "n_groups": len(set(data.groups)), "classes": classes,
-        "models": {}, "folds": fold_reports, "unblocked_overlap_counts": overlaps,
-        "warnings": warnings,
+        "models": {}, "folds": fold_reports, "mean_feature_importances": mean_importances,
+        "unblocked_overlap_counts": overlaps, "warnings": warnings,
     }
     for name, pred in predictions.items():
         report["models"][name] = metrics(data.y, pred, classes)
@@ -125,6 +139,16 @@ def save_results(report, predictions, output):
         writer = csv.DictWriter(handle, fieldnames=list(predictions[0]), lineterminator="\n")
         writer.writeheader()
         writer.writerows(predictions)
+    importance_rows = []
+    for f in report.get("folds", []):
+        for mod, imps in f.get("feature_importances", {}).items():
+            for feat, val in imps.items():
+                importance_rows.append({"fold": f["fold"], "model": mod, "feature": feat, "importance": val})
+    if importance_rows:
+        with (output / "feature_importances.csv").open("w", newline="") as handle:
+            writer = csv.DictWriter(handle, fieldnames=["fold", "model", "feature", "importance"], lineterminator="\n")
+            writer.writeheader()
+            writer.writerows(importance_rows)
     lines = ["# Grouped benchmark", "", f"Input SHA-256: `{report['dataset_sha256']}`", "",
              f"{report['n_samples']} samples / {report['n_groups']} independent groups.", "",
              "| Model | Accuracy | Balanced accuracy | Macro F1 | Equal-group accuracy |",
@@ -132,5 +156,12 @@ def save_results(report, predictions, output):
     for name, score in report["models"].items():
         lines.append(f"| {name} | {score['accuracy']:.3f} | {score['balanced_accuracy']:.3f} | "
                      f"{score['macro_f1']:.3f} | {score['group_accuracy']['estimate']:.3f} |")
+    if report.get("mean_feature_importances"):
+        lines.extend(["", "## Feature importances (mean across folds)", "",
+                      "| Model | Top features |", "|---|---|"])
+        for mod, imps in report["mean_feature_importances"].items():
+            top = sorted(imps.items(), key=lambda kv: kv[1], reverse=True)[:5]
+            top_str = ", ".join(f"{k}: {v:.4f}" for k, v in top)
+            lines.append(f"| {mod} | {top_str} |")
     lines.extend(["", "## Interpretation", "", *[f"- {w}" for w in report["warnings"]], ""])
     (output / "REPORT.md").write_text("\n".join(lines))
