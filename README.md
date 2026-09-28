@@ -68,6 +68,11 @@ groups that every training and test fold contains every class.
 | `f_*` | Finite numerical features; only these enter the model |
 | `image_sha256` (optional) | Unique source-image checksum; duplicate images are rejected |
 
+When provided, `image_sha256` must be a 64-character hexadecimal SHA-256.
+Checks for duplicate source images ignore letter case, so the same digest
+cannot be placed in separate groups by changing its capitalization. The tool
+checks supplied digests; it does not read or verify the underlying images.
+
 Use pseudonymous IDs. Keep private data outside Git. Record data license,
 annotation process, preprocessing and cohort limitations in your own data card.
 

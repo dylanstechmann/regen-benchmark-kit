@@ -5,6 +5,7 @@ from __future__ import annotations
 import csv
 import hashlib
 import io
+import re
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -87,11 +88,15 @@ def load_table(path: str | Path, group_columns: list[str], *, task="classificati
     for column in ["sample_id", target_column, *group_columns]:
         if any(not r[column] for r in rows):
             raise ValueError(f"blank {column}")
-    for column in ["sample_id", "image_sha256"]:
-        if column in header:
-            values = [r[column] for r in rows]
-            if any(not v for v in values) or len(set(values)) != len(values):
-                raise ValueError(f"{column} must be nonempty and unique (duplicate samples leak)")
+    sample_ids = [r["sample_id"] for r in rows]
+    if len(set(sample_ids)) != len(sample_ids):
+        raise ValueError("sample_id must be unique (duplicate samples leak)")
+    if "image_sha256" in header:
+        checksums = [r["image_sha256"] for r in rows]
+        if any(re.fullmatch(r"[0-9a-fA-F]{64}", value) is None for value in checksums):
+            raise ValueError("image_sha256 must be a 64-character hexadecimal digest")
+        if len({value.lower() for value in checksums}) != len(checksums):
+            raise ValueError("image_sha256 must be unique (duplicate source images leak)")
     try:
         x = np.array([[float(row[c]) for c in features] for row in rows])
     except ValueError as exc:

@@ -80,6 +80,25 @@ class BenchmarkTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 load_table(self.path, ["group_id"])
 
+    def test_image_checksum_rejects_case_variant_duplicates_and_malformed_values(self):
+        digest = "a" * 64
+        self.path.write_text(
+            "sample_id,label,group_id,image_sha256,f_x\n"
+            f"a,A,g,{digest},1\n"
+            f"b,B,h,{digest.upper()},2\n",
+            encoding="utf-8",
+        )
+        with self.assertRaisesRegex(ValueError, "duplicate source images"):
+            load_table(self.path, ["group_id"])
+        self.path.write_text(
+            "sample_id,label,group_id,image_sha256,f_x\n"
+            f"a,A,g,{digest},1\n"
+            "b,B,h,not-a-sha256,2\n",
+            encoding="utf-8",
+        )
+        with self.assertRaisesRegex(ValueError, "64-character hexadecimal"):
+            load_table(self.path, ["group_id"])
+
     def test_single_connected_component_cannot_be_split(self):
         with self.path.open() as handle:
             rows = list(csv.DictReader(handle))
