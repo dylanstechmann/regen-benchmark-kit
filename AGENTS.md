@@ -32,7 +32,7 @@ Use a new output directory. Do not overwrite `examples/nist_ipsc/results/` unles
 ## Improve, in this order
 
 1. If a metric, hash, or group rule disagrees with `README.md`, fix the disagreement and add a test.
-2. Optional: one leakage diagnostic that is not already there (for example, show random-split vs group-split on the synthetic fixture only, labeled as a diagnostic).
+2. `regenbench leakage-check` is the random-row versus group-holdout diagnostic. It runs only on a synthetic donor-tag fixture. Do not point it at the NIST table or quote it as a biological metric.
 3. Do not add a new model class unless the NIST and synthetic baselines still run unchanged.
 
 ## Done when
