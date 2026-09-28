@@ -8,6 +8,8 @@ out-of-fold prediction and the exact input hash.
 The loader parses the same CSV bytes it hashes, so a file changed during
 loading cannot produce a report whose hash identifies different input data.
 
+`regenbench leakage-check --out artifacts/leakage.json` scores a synthetic donor-tag fixture twice: a random row split, which can see the same donor in train and test, and the group holdout, which cannot. The gap is a leak detector. It is not a biological metric and it is not computed on the NIST table.
+
 It accepts numerical features from microscopy, organoid measurements or
 preprocessed expression summaries. It does not normalize raw RNA counts or
 establish that a phenotype is senescence, pluripotency or rejuvenation.

@@ -2,12 +2,14 @@
 
 import argparse
 import csv
+import json
 from pathlib import Path
 
 import numpy as np
 
 from regenbench.benchmark import evaluate, save_results
 from regenbench.data import load_table
+from regenbench.leakage import leakage_gap
 from regenbench.regression import evaluate_regression, save_regression_results
 
 
@@ -48,10 +50,18 @@ def main(argv=None):
     regress.add_argument("--folds", type=int, help="use GroupKFold instead of leaving each whole group out")
     regress.add_argument("--seed", type=int, default=0)
     regress.add_argument("--out", required=True)
+    leak = sub.add_parser("leakage-check", help="synthetic donor-tag diagnostic; not a study result")
+    leak.add_argument("--out", required=True, help="new JSON file path")
     args = parser.parse_args(argv)
     try:
         if args.command == "demo":
             write_demo(args.out, args.seed)
+        elif args.command == "leakage-check":
+            path = Path(args.out)
+            if path.exists():
+                raise FileExistsError(f"output already exists: {path}")
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(json.dumps(leakage_gap(), indent=2) + "\n", encoding="utf-8")
         elif args.command == "regress":
             data = load_table(args.csv, [c.strip() for c in args.group_by.split(",")],
                               task="regression", target_column=args.target)
