@@ -57,6 +57,8 @@ class RegressionTests(unittest.TestCase):
                 if row["fold"] == fold["fold"]:
                     self.assertAlmostEqual(row["mean_baseline"], data.y[train].mean())
         self.assertEqual(report["unblocked_overlap_counts"]["batch_id"], [1, 1, 1])
+        self.assertEqual(report["folds"][0]["feature_importance_methods"]["ridge"],
+                         "absolute_standardized_coefficient_mean_across_classes")
         self.assertLess(report["models"]["ridge"]["mae"], report["models"]["mean_baseline"]["mae"])
         self.assertEqual((report, predictions), evaluate_regression(data))
 
@@ -121,8 +123,9 @@ class RegressionTests(unittest.TestCase):
             self.assertIn("model", reader[0])
             self.assertIn("feature", reader[0])
             self.assertIn("importance", reader[0])
+            self.assertEqual({row["method"] for row in reader if row["model"] == "random_forest"},
+                             {"training_impurity_decrease"})
 
 
 if __name__ == "__main__":
     unittest.main()
-

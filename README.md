@@ -83,6 +83,8 @@ support this joint holdout. Choose a different estimand or collect new batches;
 do not manufacture independence by renaming IDs.
 
 If you block only donors, the report explicitly counts unblocked batch overlap.
+Both tasks also check plate, group, acquisition-day and source-well metadata
+when present. Shared unblocked values produce explicit holdout warnings.
 The tool cannot detect related samples when their metadata is missing or wrong.
 
 ## What is measured
@@ -124,6 +126,14 @@ are required. Leave-one-group-out is the default; `--folds N` uses GroupKFold.
 Regression uses the same connected grouping and input provenance as
 classification. The report records settings, versions, folds and unblocked
 metadata overlaps. Fixed models are baselines, not tuned recommendations.
+
+`feature_importances.csv` labels each quantity in its `method` column and keeps
+full numeric precision. Tree values are training impurity decreases; linear
+values are absolute standardized coefficients (averaged across class rows).
+These quantities are not comparable across model types and do not identify
+biological mechanisms. Impurity measures can favor continuous or high-cardinality
+predictors; correlated predictors can obscure coefficient interpretation.
+See the [scikit-learn inspection example](https://scikit-learn.org/stable/auto_examples/inspection/plot_permutation_importance.html).
 
 Repeated tuning against these folds turns them into development data. Reserve
 an external study or untouched test cohort for a final generalization claim.

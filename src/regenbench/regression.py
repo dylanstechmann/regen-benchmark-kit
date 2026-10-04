@@ -18,7 +18,7 @@ from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 
 from regenbench import __version__
-from regenbench.data import Dataset, extract_feature_importances
+from regenbench.data import Dataset, extract_feature_importances, feature_importance_method, unblocked_overlaps
 
 
 def regression_metrics(y, predictions):
@@ -42,6 +42,7 @@ def evaluate_regression(data: Dataset, *, folds=None, seed=0):
                               or not 2 <= folds <= n_groups):
         raise ValueError("folds must be between 2 and the number of groups")
     splitter = LeaveOneGroupOut() if folds is None else GroupKFold(n_splits=folds)
+    partitions = list(splitter.split(data.x, data.y, data.groups))
     factory = {
         "mean_baseline": lambda: DummyRegressor(strategy="mean"),
         "ridge": lambda: make_pipeline(StandardScaler(), Ridge(alpha=1.0)),
@@ -54,14 +55,14 @@ def evaluate_regression(data: Dataset, *, folds=None, seed=0):
     predictions = {name: np.full(len(data.y), np.nan) for name in factory}
     fold_ids = np.full(len(data.y), -1)
     records = []
-    for fold, (train, test) in enumerate(splitter.split(data.x, data.y, data.groups)):
+    for fold, (train, test) in enumerate(partitions):
         if set(data.groups[train]) & set(data.groups[test]):
             raise ValueError("group overlap")
         fold_ids[test] = fold
         record = {"fold": fold, "n_train": len(train), "n_test": len(test),
                   "train_groups": sorted(set(data.groups[train])),
                   "test_groups": sorted(set(data.groups[test])), "models": {},
-                  "feature_importances": {}}
+                  "feature_importances": {}, "feature_importance_methods": {}}
         for name, create in factory.items():
             model = create().fit(data.x[train], data.y[train])
             pred = model.predict(data.x[test])
@@ -70,6 +71,7 @@ def evaluate_regression(data: Dataset, *, folds=None, seed=0):
             imp = extract_feature_importances(model, data.features)
             if imp is not None:
                 record["feature_importances"][name] = imp
+                record["feature_importance_methods"][name] = feature_importance_method(model)
         records.append(record)
     group_metadata = {str(group): {column: sorted({row[column] for i, row in enumerate(data.rows)
                                                    if data.groups[i] == group})
@@ -81,20 +83,13 @@ def evaluate_regression(data: Dataset, *, folds=None, seed=0):
                      for group in np.unique(data.groups)}
         models[name] = {**regression_metrics(data.y, pred), "per_group": per_group,
                         "equal_group_mae": float(np.mean([m["mae"] for m in per_group.values()]))}
-    overlaps = {}
-    for column in ["donor_id", "batch_id", "plate_id", "acquisition_day", "source_well"]:
-        if column not in data.rows[0] or column in data.group_columns:
-            continue
-        overlaps[column] = []
-        for train, test in splitter.split(data.x, data.y, data.groups):
-            a = {data.rows[i][column] for i in train} - {""}
-            b = {data.rows[i][column] for i in test} - {""}
-            overlaps[column].append(len(a & b))
+    overlaps = unblocked_overlaps(data, partitions)
     warnings = ["Out-of-fold development benchmark; no hyperparameter selection was performed.",
                 "Models and scalers fit only on each training fold. Features must already be free of upstream leakage.",
                 "Grouping metadata defines the holdout; it does not establish biological independence.",
                 "No confidence interval is reported. Inspect the per-group results and the number of source groups.",
-                "Predictions are not clipped to a target range; out-of-range predictions remain visible."]
+                "Predictions are not clipped to a target range; out-of-range predictions remain visible.",
+                "Feature contributions describe fitted models, not biological mechanisms. Impurity decreases can favor continuous/high-cardinality features; absolute coefficients omit direction and depend on correlated features. Values from different model types are not comparable."]
     if n_groups < 5:
         warnings.append(f"Only {n_groups} groups: results are exploratory and cannot establish broad generalization.")
     for column, counts in overlaps.items():
@@ -104,7 +99,7 @@ def evaluate_regression(data: Dataset, *, folds=None, seed=0):
     for name in factory:
         fold_imps = [r["feature_importances"][name] for r in records if name in r.get("feature_importances", {})]
         if fold_imps:
-            mean_importances[name] = {feat: round(float(np.mean([fi[feat] for fi in fold_imps])), 6)
+            mean_importances[name] = {feat: float(np.mean([fi[feat] for fi in fold_imps]))
                                       for feat in data.features}
     report = {"schema_version": 1, "task": "regression", "dataset_sha256": data.sha256,
               "n_samples": len(data.y), "n_groups": n_groups, "group_metadata": group_metadata,
@@ -139,10 +134,11 @@ def save_regression_results(report, predictions, output):
     for f in report.get("folds", []):
         for mod, imps in f.get("feature_importances", {}).items():
             for feat, val in imps.items():
-                importance_rows.append({"fold": f["fold"], "model": mod, "feature": feat, "importance": val})
+                importance_rows.append({"fold": f["fold"], "model": mod, "feature": feat, "importance": val,
+                                        "method": f.get("feature_importance_methods", {}).get(mod, "unrecorded")})
     if importance_rows:
         with (output / "feature_importances.csv").open("w", newline="") as handle:
-            writer = csv.DictWriter(handle, fieldnames=["fold", "model", "feature", "importance"], lineterminator="\n")
+            writer = csv.DictWriter(handle, fieldnames=["fold", "model", "feature", "importance", "method"], lineterminator="\n")
             writer.writeheader()
             writer.writerows(importance_rows)
     lines = ["# Grouped regression benchmark", "", f"Input SHA-256: `{report['dataset_sha256']}`", "",

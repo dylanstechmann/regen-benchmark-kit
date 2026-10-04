@@ -9,7 +9,7 @@ import numpy as np
 
 from regenbench.benchmark import evaluate, group_accuracy_interval, save_results
 from regenbench.cli import write_demo
-from regenbench.data import connected_groups, load_table
+from regenbench.data import connected_groups, extract_feature_importances, load_table
 
 
 class BenchmarkTests(unittest.TestCase):
@@ -47,6 +47,27 @@ class BenchmarkTests(unittest.TestCase):
     def test_unblocked_batches_are_reported(self):
         report, _ = evaluate(load_table(self.path, ["donor_id"]), bootstrap_draws=100)
         self.assertTrue(any(report["unblocked_overlap_counts"]["batch_id"]))
+
+    def test_unblocked_wells_and_acquisition_days_are_reported_for_classification(self):
+        data = load_table(self.path, ["donor_id"])
+        for row in data.rows:
+            row.update(source_well="same-well", acquisition_day="same-day")
+        report, _ = evaluate(data, folds=3, bootstrap_draws=100)
+        for column in ["source_well", "acquisition_day"]:
+            self.assertEqual(report["unblocked_overlap_counts"][column], [1, 1, 1])
+            self.assertTrue(any(f"held-out-{column}" in warning for warning in report["warnings"]))
+
+    def test_feature_contributions_preserve_precision_and_reject_corrupt_values(self):
+        from types import SimpleNamespace
+        model = SimpleNamespace(feature_importances_=np.array([1e-9, 1 - 1e-9]))
+        values = extract_feature_importances(model, ["f_small", "f_large"])
+        self.assertEqual(values["f_small"], 1e-9)
+        for raw in [np.array([np.nan, 1]), np.array([1]), np.array([[.5, .5]])]:
+            model.feature_importances_ = raw
+            with self.assertRaises(ValueError):
+                extract_feature_importances(model, ["f_small", "f_large"])
+        with self.assertRaises(ValueError):
+            extract_feature_importances(SimpleNamespace(coef_=np.zeros((1, 1, 2))), ["f_small", "f_large"])
 
     def test_metadata_never_enters_feature_matrix(self):
         data = load_table(self.path, ["donor_id"])
@@ -163,8 +184,12 @@ class BenchmarkTests(unittest.TestCase):
             self.assertIn("model", reader[0])
             self.assertIn("feature", reader[0])
             self.assertIn("importance", reader[0])
+            self.assertIn("method", reader[0])
+            self.assertEqual({row["method"] for row in reader if row["model"] == "random_forest"},
+                             {"training_impurity_decrease"})
+            self.assertEqual({row["method"] for row in reader if row["model"] == "logistic"},
+                             {"absolute_standardized_coefficient_mean_across_classes"})
 
 
 if __name__ == "__main__":
     unittest.main()
-

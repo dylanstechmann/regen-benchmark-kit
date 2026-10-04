@@ -18,7 +18,7 @@ from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 
 from regenbench import __version__
-from regenbench.data import Dataset, extract_feature_importances
+from regenbench.data import Dataset, extract_feature_importances, feature_importance_method, unblocked_overlaps
 
 
 def metrics(y, pred, classes):
@@ -76,7 +76,7 @@ def evaluate(data: Dataset, *, folds=5, seed=0, bootstrap_draws=2000):
         record = {"fold": fold, "n_train": len(train), "n_test": len(test),
                   "train_groups": sorted(set(data.groups[train])),
                   "test_groups": sorted(set(data.groups[test])), "models": {},
-                  "feature_importances": {}}
+                  "feature_importances": {}, "feature_importance_methods": {}}
         for name, factory in models.items():
             model = factory().fit(data.x[train], data.y[train])
             pred = model.predict(data.x[test])
@@ -85,28 +85,23 @@ def evaluate(data: Dataset, *, folds=5, seed=0, bootstrap_draws=2000):
             imp = extract_feature_importances(model, data.features)
             if imp is not None:
                 record["feature_importances"][name] = imp
+                record["feature_importance_methods"][name] = feature_importance_method(model)
         fold_reports.append(record)
     warnings = [
         "OOF evaluation is development evidence. Reserve an external dataset for a final claim.",
         "Group bootstrap intervals condition on fitted predictions and exclude model-selection uncertainty.",
         "Only selected grouping columns are blocked; choose the units appropriate to the intended generalization.",
+        "Feature contributions describe fitted models, not biological mechanisms. Impurity decreases can favor continuous/high-cardinality features; absolute coefficients omit direction and depend on correlated features. Values from different model types are not comparable.",
     ]
-    overlaps = {}
-    for column in ["donor_id", "batch_id", "plate_id", "group_id"]:
-        if column in data.rows[0] and column not in data.group_columns:
-            counts = []
-            for train, test in partitions:
-                a = {data.rows[i][column] for i in train} - {""}
-                b = {data.rows[i][column] for i in test} - {""}
-                counts.append(len(a & b))
-            overlaps[column] = counts
-            if any(counts):
-                warnings.append(f"Unblocked {column} values overlap train/test; this is not a held-out-{column} result.")
+    overlaps = unblocked_overlaps(data, partitions)
+    for column, counts in overlaps.items():
+        if any(counts):
+            warnings.append(f"Unblocked {column} values overlap train/test; this is not a held-out-{column} result.")
     mean_importances = {}
     for name in models:
         fold_imps = [f["feature_importances"][name] for f in fold_reports if name in f.get("feature_importances", {})]
         if fold_imps:
-            mean_importances[name] = {feat: round(float(np.mean([fi[feat] for fi in fold_imps])), 6)
+            mean_importances[name] = {feat: float(np.mean([fi[feat] for fi in fold_imps]))
                                       for feat in data.features}
     report = {
         "schema_version": 1, "dataset_sha256": data.sha256,
@@ -143,10 +138,11 @@ def save_results(report, predictions, output):
     for f in report.get("folds", []):
         for mod, imps in f.get("feature_importances", {}).items():
             for feat, val in imps.items():
-                importance_rows.append({"fold": f["fold"], "model": mod, "feature": feat, "importance": val})
+                importance_rows.append({"fold": f["fold"], "model": mod, "feature": feat, "importance": val,
+                                        "method": f.get("feature_importance_methods", {}).get(mod, "unrecorded")})
     if importance_rows:
         with (output / "feature_importances.csv").open("w", newline="") as handle:
-            writer = csv.DictWriter(handle, fieldnames=["fold", "model", "feature", "importance"], lineterminator="\n")
+            writer = csv.DictWriter(handle, fieldnames=["fold", "model", "feature", "importance", "method"], lineterminator="\n")
             writer.writeheader()
             writer.writerows(importance_rows)
     lines = ["# Grouped benchmark", "", f"Input SHA-256: `{report['dataset_sha256']}`", "",

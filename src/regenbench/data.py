@@ -130,10 +130,35 @@ def extract_feature_importances(model, feature_names: list[str]) -> dict[str, fl
             importances = np.abs(coef)
         elif coef.ndim == 2:
             importances = np.mean(np.abs(coef), axis=0)
-    if importances is not None and len(importances) == len(feature_names):
-        clean_imps = {}
-        for feat, imp in zip(feature_names, importances.flat):
-            val = float(imp)
-            clean_imps[feat] = 0.0 if not np.isfinite(val) else round(val, 6)
-        return clean_imps
+        else:
+            raise ValueError("model coefficients must be a one- or two-dimensional array")
+    if importances is None:
+        return None
+    if (importances.shape != (len(feature_names),) or not np.isfinite(importances).all()
+            or len(set(feature_names)) != len(feature_names)):
+        raise ValueError("feature contributions must be finite and aligned with distinct feature names")
+    return dict(zip(feature_names, map(float, importances)))
+
+
+def feature_importance_method(model) -> str | None:
+    """Describe the quantity; different estimators' values are not comparable."""
+    estimator = model.steps[-1][1] if hasattr(model, "steps") else model
+    if hasattr(estimator, "feature_importances_"):
+        return "training_impurity_decrease"
+    if hasattr(estimator, "coef_"):
+        return "absolute_standardized_coefficient_mean_across_classes"
     return None
+
+
+def unblocked_overlaps(data: Dataset, partitions) -> dict[str, list[int]]:
+    """Report known experimental units omitted from the selected holdout."""
+    result = {}
+    for column in ["donor_id", "batch_id", "plate_id", "group_id", "acquisition_day", "source_well"]:
+        if column not in data.rows[0] or column in data.group_columns:
+            continue
+        result[column] = []
+        for train, test in partitions:
+            left = {data.rows[i][column] for i in train} - {""}
+            right = {data.rows[i][column] for i in test} - {""}
+            result[column].append(len(left & right))
+    return result
