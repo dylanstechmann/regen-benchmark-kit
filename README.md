@@ -95,14 +95,31 @@ The tool cannot detect related samples when their metadata is missing or wrong.
 - Fold-local standardization and class-weighted logistic regression (`C=1`).
 - Random forest classifier baseline (`n_estimators=100`, `max_depth=5`, balanced subsampling).
 - Majority-class baseline trained independently in every fold.
-- Accuracy, balanced accuracy, macro F1 and class-ordered confusion matrices.
+- Accuracy, balanced accuracy, macro F1, class-ordered confusion matrices,
+  class-ordered out-of-fold probabilities, multiclass Brier score and log loss.
+- Top-label 10-bin reliability summaries and fixed 0.5/0.7/0.9
+  confidence-versus-coverage summaries for review workflows.
 - Equal-group-weighted accuracy with a 95% percentile bootstrap over whole groups.
+- Equal-group-weighted Brier/log-loss bootstrap intervals when at least three
+  independent groups are available.
+- Paired equal-group bootstrap differences in Brier/log loss against the
+  majority baseline, using the same resampled groups for each comparison.
 - Per-fold feature importance tracking and CSV export (`feature_importances.csv`) for tree ensembles and standardized linear coefficients.
 
 The bootstrap conditions on already fitted out-of-fold predictions. It does
 not refit models or include uncertainty from model selection. Very few groups
 give weak intervals; fewer than three yield no interval. Pooled row metrics
 and equal-group metrics answer different questions when group sizes differ.
+Probability metrics retain every out-of-fold probability in `predictions.csv`.
+Reliability bins and coverage summaries are descriptive estimates on the same
+development folds; they do not calibrate the model for a new study or replace
+an external test set. A majority baseline naturally has low coverage at higher
+confidence thresholds when its only class probability is below the threshold.
+Paired probability-score differences are conditional on the fixed out-of-fold
+predictions; negative values favor the candidate because lower scores are
+better. Intervals are omitted with fewer than three groups. Classification
+probability features are exercised on the synthetic software fixture and do
+not establish performance on biological outcomes.
 
 ### Regression (`regenbench regress`)
 

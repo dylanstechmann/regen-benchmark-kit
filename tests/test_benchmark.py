@@ -7,7 +7,12 @@ from unittest.mock import patch
 
 import numpy as np
 
-from regenbench.benchmark import evaluate, group_accuracy_interval, save_results
+from regenbench.benchmark import (
+    evaluate,
+    group_accuracy_interval,
+    paired_group_probability_comparisons,
+    save_results,
+)
 from regenbench.cli import write_demo
 from regenbench.data import connected_groups, extract_feature_importances, load_table
 
@@ -41,6 +46,9 @@ class BenchmarkTests(unittest.TestCase):
         out = Path(self.tmp.name) / "results"
         save_results(report, rows, out)
         self.assertTrue((out / "predictions.csv").exists())
+        rendered_report = (out / "REPORT.md").read_text(encoding="utf-8")
+        self.assertIn("Brier Δ vs majority", rendered_report)
+        self.assertIn("Probability score differences are candidate minus majority", rendered_report)
         with self.assertRaises(FileExistsError):
             save_results(report, rows, out)
 
@@ -139,6 +147,38 @@ class BenchmarkTests(unittest.TestCase):
         report = group_accuracy_interval(y, pred, groups, draws=100)
         self.assertAlmostEqual(report["estimate"], 1 / 3)
         self.assertIsNotNone(report["ci95"])
+
+    def test_probability_scores_export_and_paired_group_delta_against_baseline(self):
+        y = np.array(["a"] * 9, dtype=object)
+        groups = np.array(["large"] * 7 + ["small-1", "small-2"])
+        baseline = np.full((len(y), 2), 0.5)
+        candidate = np.tile([0.9, 0.1], (len(y), 1))
+        comparison = paired_group_probability_comparisons(
+            y,
+            {"majority": baseline, "candidate": candidate},
+            groups,
+            ["a", "b"],
+            seed=3,
+            draws=200,
+        )
+        self.assertEqual(comparison["n_groups"], 3)
+        self.assertTrue(comparison["negative_difference_favors_candidate"])
+        self.assertAlmostEqual(
+            comparison["models"]["candidate"]["multiclass_brier_score"]["estimate_difference"],
+            -0.48,
+        )
+        self.assertLess(
+            comparison["models"]["candidate"]["log_loss"]["estimate_difference"], 0,
+        )
+        self.assertIsNotNone(comparison["models"]["candidate"]["multiclass_brier_score"]["ci95"])
+
+        report, rows = evaluate(load_table(self.path, ["donor_id"]), folds=3, bootstrap_draws=100)
+        paired = report["paired_group_probability_comparisons"]
+        self.assertEqual(paired["baseline_model"], "majority")
+        self.assertEqual(set(paired["models"]), {"logistic", "random_forest"})
+        for row in rows:
+            for model in ("majority", "logistic", "random_forest"):
+                self.assertAlmostEqual(sum(row[f"{model}_prob_{label}"] for label in report["classes"]), 1.0)
 
     def test_training_only_scaler_fit(self):
         from unittest.mock import patch
