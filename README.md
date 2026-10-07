@@ -1,5 +1,8 @@
 # Regen Benchmark Kit
 
+This is a personal hobby and learning project, developed with substantial
+assistance from AI coding tools.
+
 **Turn an annotated feature table into a reproducible, group-aware baseline.**
 This is the evaluation layer between a working demo and a research result:
 keep related donors, plates or batches together; fit preprocessing inside each
@@ -175,7 +178,7 @@ an external study or untouched test cohort for a final generalization claim.
 Do feature selection, imputation and any learned normalization inside training
 folds too; this toolkit cannot undo leakage already baked into input features.
 
-## Connect the portfolio
+## Related projects
 
 [brightfield-colony-qc](https://github.com/dylanstechmann/brightfield-colony-qc)
 exports directly compatible features with `colonyqc export-features`.
@@ -184,7 +187,7 @@ can supply exploratory summaries, but its control selection uses the supplied
 cohort: **do not** pre-score an entire supervised dataset and assume fold-local
 preprocessing. Fit any cohort-dependent scoring on training data separately.
 
-See the [portfolio audit and next research milestones](docs/PORTFOLIO_REVIEW.md)
+See the [project review and next research milestones](docs/PORTFOLIO_REVIEW.md)
 and [data/model card](docs/DATA_MODEL_CARD.md).
 
 ## Method references

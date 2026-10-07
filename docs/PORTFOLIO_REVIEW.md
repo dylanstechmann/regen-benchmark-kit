@@ -1,4 +1,4 @@
-# Regenerative computation portfolio review
+# Regenerative computation project review
 
 Review date: 2026-09-24. Scope: source and tests of the five recent Python
 projects; README/tree review of the atlas and educational applications.
@@ -7,11 +7,12 @@ papers or the older atlases.
 
 ## Direction
 
-Build tools a collaborating laboratory can evaluate on its own data. Your
-CS/AI background fits evaluation design, imaging features, experiment history,
-analysis provenance and instrumentation measurements. These artifacts make a
-concrete collaboration offer; repository count alone does not establish research
-competence or experimental access.
+These personal hobby and learning projects use AI coding assistance to explore
+evaluation design, imaging features, experiment history, analysis provenance
+and instrumentation measurements. The next development question is how the
+existing methods behave on permitted, appropriately grouped real datasets and
+recorded measurements. Keep software behavior, published source biology and
+measured results clearly attributed.
 
 ## Existing work and changes
 
@@ -22,9 +23,9 @@ competence or experimental access.
 | [senescence-module-score](https://github.com/dylanstechmann/senescence-module-score) | SenMayo-inspired control scoring and synthetic spike; 4 tests | Strict matrix/CSV validation, explicit control-gene mapping and seed, input digest, zero-variance effect-size handling; 8 tests |
 | [cell-protocol-compiler](https://github.com/dylanstechmann/cell-protocol-compiler) | Abridged published checklists and validators; 5 tests | Finite values, unique parameter names, final-feed-to-endpoint gap, canonical protocol digest; 8 tests |
 | [open-perfusion-rig](https://github.com/dylanstechmann/open-perfusion-rig) | Geometry, host simulator, Arduino sketch and carriage; 5 tests | Strict host commands, finite values, duration/rounding checks, completed-run flow reset, density-aware effective diameter and transport limitations; 9 tests |
-| [geroscience-compound-atlas](https://github.com/dylanstechmann/geroscience-compound-atlas) | Compound evidence, scaffold benchmark, molecule generation, dashboard | No code changes in this pass; use as a separate chemical-data portfolio project |
+| [geroscience-compound-atlas](https://github.com/dylanstechmann/geroscience-compound-atlas) | Compound evidence, scaffold benchmark, molecule generation, dashboard | No code changes in this pass; keep as a separate chemical-data exploration project |
 | [anagen](https://github.com/dylanstechmann/anagen) | Hair/tooth research atlas | No changes; current biological and trial claims need their own source review |
-| [ReaperDelay](https://github.com/dylanstechmann/ReaperDelay) | Educational browser game | No changes; distinct from a research methods portfolio |
+| [ReaperDelay](https://github.com/dylanstechmann/ReaperDelay) | Educational browser game | No changes; distinct from the research methods projects |
 
 ## Two additions
 
@@ -61,10 +62,9 @@ one study do not satisfy the external-validation milestone below.
 | 4 | Senescence scoring comparison | Public or collaborator cohort with permission; tissue/cell-type stratification; confounder checks and orthogonal assay comparison |
 | 5 | Protocol review handoff | A domain expert checks every source, parameter and timing assumption; checksum ties comments to the reviewed version |
 
-The most useful next step is a lab partner's review of the NIST case study and
-an untouched independent imaging dataset. The software and preliminary
-within-study results provide a concrete starting point for that collaboration;
-they do not yet establish a paper-worthy biological finding.
+Useful next steps are domain review of the NIST case study and evaluation on
+an untouched independent imaging dataset. The preliminary within-study
+results motivate those checks; they do not establish a biological finding.
 
 ## Open limitations
 
