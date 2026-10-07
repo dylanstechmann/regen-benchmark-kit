@@ -32,6 +32,98 @@ def regression_metrics(y, predictions):
             "mean_signed_error": float(np.mean(predictions - y))}
 
 
+def group_error_intervals(y, predictions, groups, *, seed=0, draws=2000):
+    """Equal-group-weighted MAE/RMSE intervals over fixed out-of-fold predictions.
+
+    Each group's error is computed first, so groups receive equal weight however
+    many rows they contributed. The bootstrap resamples whole groups and is
+    conditional on the already fitted predictions: it does not refit models and
+    carries no uncertainty from model selection. Fewer than three groups yields no
+    interval, because resampling two groups describes nothing.
+    """
+    y = np.asarray(y, dtype=float)
+    predictions = np.asarray(predictions, dtype=float)
+    groups = np.asarray(groups)
+    if y.ndim != 1 or y.shape != predictions.shape or len(groups) != len(y) or not y.size:
+        raise ValueError("intervals require matched, nonempty target/prediction/group vectors")
+    if not np.isfinite(y).all() or not np.isfinite(predictions).all():
+        raise ValueError("intervals require finite targets and predictions")
+    unique = np.unique(groups)
+    absolute = np.array([np.mean(np.abs(predictions[groups == group] - y[groups == group]))
+                         for group in unique])
+    squared = np.array([np.sqrt(np.mean((predictions[groups == group] - y[groups == group]) ** 2))
+                        for group in unique])
+    result = {"n_groups": len(unique),
+              "mae": {"estimate": float(absolute.mean()), "ci95": None},
+              "rmse": {"estimate": float(squared.mean()), "ci95": None},
+              "method": "Equal-group-weighted percentile bootstrap of fixed out-of-fold errors; "
+                        "conditional on fitted predictions, not a row bootstrap.",
+              "interval_available": False,
+              "interval_unavailable_reason": None}
+    if len(unique) >= 3:
+        rng = np.random.default_rng(seed)
+        samples = rng.integers(0, len(unique), size=(draws, len(unique)))
+        result["mae"]["ci95"] = np.quantile(absolute[samples].mean(axis=1), [0.025, 0.975]).tolist()
+        result["rmse"]["ci95"] = np.quantile(squared[samples].mean(axis=1), [0.025, 0.975]).tolist()
+        result["interval_available"] = True
+    else:
+        result["interval_unavailable_reason"] = (
+            f"{len(unique)} independent group(s): at least 3 are required before resampling groups "
+            "describes anything.")
+    return result
+
+
+def paired_group_error_comparisons(y, prediction_by_model, groups, *, baseline="mean_baseline",
+                                   seed=0, draws=2000):
+    """Compare each model's grouped error with the baseline using paired group resamples.
+
+    Each group's error difference is computed before resampling, so groups weigh
+    equally and every model comparison uses the same sampled groups. Negative
+    differences favor the candidate because both quantities are errors.
+    """
+    y = np.asarray(y, dtype=float)
+    groups = np.asarray(groups)
+    unique = np.unique(groups)
+    if not y.size or len(groups) != len(y) or not len(unique):
+        raise ValueError("outcomes and groups must be nonempty and aligned")
+    if baseline not in prediction_by_model:
+        raise ValueError(f"baseline model {baseline!r} is unavailable")
+
+    scores = {}
+    for name, predictions in prediction_by_model.items():
+        predictions = np.asarray(predictions, dtype=float)
+        if predictions.shape != y.shape or not np.isfinite(predictions).all():
+            raise ValueError(f"model {name!r} predictions must be matched and finite")
+        scores[name] = {
+            "mae": np.array([np.mean(np.abs(predictions[groups == group] - y[groups == group]))
+                             for group in unique]),
+            "rmse": np.array([np.sqrt(np.mean((predictions[groups == group] - y[groups == group]) ** 2))
+                              for group in unique]),
+        }
+
+    result = {"baseline_model": baseline, "n_groups": len(unique),
+              "method": "Paired equal-group percentile bootstrap of fixed out-of-fold error differences; "
+                        "conditional on fitted predictions.",
+              "negative_difference_favors_candidate": True,
+              "interval_available": len(unique) >= 3,
+              "models": {}}
+    samples = None
+    if len(unique) >= 3:
+        rng = np.random.default_rng(seed)
+        samples = rng.integers(0, len(unique), size=(draws, len(unique)))
+    for name, model_scores in scores.items():
+        if name == baseline:
+            continue
+        result["models"][name] = {}
+        for metric, values in model_scores.items():
+            differences = values - scores[baseline][metric]
+            entry = {"estimate_difference": float(differences.mean()), "ci95": None}
+            if samples is not None:
+                entry["ci95"] = np.quantile(differences[samples].mean(axis=1), [0.025, 0.975]).tolist()
+            result["models"][name][metric] = entry
+    return result
+
+
 def evaluate_regression(data: Dataset, *, folds=None, seed=0):
     if data.task != "regression":
         raise ValueError("load the table with task='regression'")
@@ -82,16 +174,23 @@ def evaluate_regression(data: Dataset, *, folds=None, seed=0):
         per_group = {str(group): regression_metrics(data.y[data.groups == group], pred[data.groups == group])
                      for group in np.unique(data.groups)}
         models[name] = {**regression_metrics(data.y, pred), "per_group": per_group,
-                        "equal_group_mae": float(np.mean([m["mae"] for m in per_group.values()]))}
+                        "equal_group_mae": float(np.mean([m["mae"] for m in per_group.values()])),
+                        "group_error_intervals": group_error_intervals(
+                            data.y, pred, data.groups, seed=seed)}
+    paired_errors = paired_group_error_comparisons(data.y, predictions, data.groups, seed=seed)
     overlaps = unblocked_overlaps(data, partitions)
     warnings = ["Out-of-fold development benchmark; no hyperparameter selection was performed.",
                 "Models and scalers fit only on each training fold. Features must already be free of upstream leakage.",
                 "Grouping metadata defines the holdout; it does not establish biological independence.",
-                "No confidence interval is reported. Inspect the per-group results and the number of source groups.",
+                "Equal-group MAE/RMSE intervals resample whole groups over fixed out-of-fold predictions. They are conditional on those predictions, exclude uncertainty from model selection, and are not row bootstraps.",
+                "Paired differences against the training-fold mean baseline use the same resampled groups for every model; negative values favor the candidate because both quantities are errors.",
                 "Predictions are not clipped to a target range; out-of-range predictions remain visible.",
                 "Feature contributions describe fitted models, not biological mechanisms. Impurity decreases can favor continuous/high-cardinality features; absolute coefficients omit direction and depend on correlated features. Values from different model types are not comparable."]
+    if n_groups < 3:
+        warnings.append(f"Only {n_groups} groups: no interval is reported, because resampling fewer than three groups describes nothing.")
     if n_groups < 5:
         warnings.append(f"Only {n_groups} groups: results are exploratory and cannot establish broad generalization.")
+        warnings.append("With few groups a group bootstrap interval is wide and unstable; read it as a spread across the available groups, not a population interval.")
     for column, counts in overlaps.items():
         if any(counts):
             warnings.append(f"Unblocked {column} overlaps train/test; this is not a held-out-{column} result.")
@@ -114,6 +213,7 @@ def evaluate_regression(data: Dataset, *, folds=None, seed=0):
               "environment": {"python": platform.python_version(), "numpy": np.__version__,
                               "scikit_learn": sklearn.__version__, "regenbench": __version__},
               "models": models, "folds": records, "mean_feature_importances": mean_importances,
+              "paired_group_error_comparisons": paired_errors,
               "unblocked_overlap_counts": overlaps, "warnings": warnings}
     rows = [{"sample_id": row["sample_id"], "target": float(data.y[i]),
              "group": str(data.groups[i]), "fold": int(fold_ids[i]),

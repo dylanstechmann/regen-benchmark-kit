@@ -9,7 +9,13 @@ import numpy as np
 from sklearn.preprocessing import StandardScaler
 
 from regenbench.data import load_table
-from regenbench.regression import evaluate_regression, regression_metrics, save_regression_results
+from regenbench.regression import (
+    evaluate_regression,
+    group_error_intervals,
+    paired_group_error_comparisons,
+    regression_metrics,
+    save_regression_results,
+)
 
 
 class RegressionTests(unittest.TestCase):
@@ -129,3 +135,144 @@ class RegressionTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class GroupedRegressionUncertaintyTests(unittest.TestCase):
+    """Grouped error intervals weight groups equally and stay silent when unsupported."""
+
+    def test_groups_weigh_equally_regardless_of_row_count(self):
+        # Group "a" contributes nine rows with zero error; "b" and "c" one row each
+        # with error 3. A row mean would be 0.3; the equal-group mean is 2.0.
+        y = np.array([0.0] * 9 + [0.0, 0.0])
+        predictions = np.array([0.0] * 9 + [3.0, 3.0])
+        groups = np.array(["a"] * 9 + ["b", "c"])
+        result = group_error_intervals(y, predictions, groups, seed=0)
+        self.assertEqual(result["n_groups"], 3)
+        self.assertAlmostEqual(result["mae"]["estimate"], 2.0)
+        self.assertAlmostEqual(float(np.mean(np.abs(predictions - y))), 6 / 11)
+        self.assertIn("not a row bootstrap", result["method"])
+
+    def test_interval_requires_three_groups_and_says_why(self):
+        y = np.array([0.0, 0.0, 0.0, 0.0])
+        predictions = np.array([1.0, 1.0, 2.0, 2.0])
+        two = group_error_intervals(y, predictions, np.array(["a", "a", "b", "b"]), seed=0)
+        self.assertFalse(two["interval_available"])
+        self.assertIsNone(two["mae"]["ci95"])
+        self.assertIn("at least 3", two["interval_unavailable_reason"])
+        self.assertAlmostEqual(two["mae"]["estimate"], 1.5)
+
+        three = group_error_intervals(y, predictions, np.array(["a", "b", "c", "c"]), seed=0)
+        self.assertTrue(three["interval_available"])
+        self.assertIsNone(three["interval_unavailable_reason"])
+        low, high = three["mae"]["ci95"]
+        self.assertLessEqual(low, three["mae"]["estimate"])
+        self.assertLessEqual(three["mae"]["estimate"], high)
+
+    def test_intervals_are_deterministic_for_a_seed(self):
+        y = np.zeros(6)
+        predictions = np.array([0.0, 1.0, 2.0, 3.0, 4.0, 5.0])
+        groups = np.array(["a", "b", "c", "d", "e", "f"])
+        first = group_error_intervals(y, predictions, groups, seed=7)
+        self.assertEqual(first, group_error_intervals(y, predictions, groups, seed=7))
+        self.assertNotEqual(first["mae"]["ci95"],
+                            group_error_intervals(y, predictions, groups, seed=8)["mae"]["ci95"])
+
+    def test_perfect_predictions_give_a_zero_width_interval(self):
+        y = np.array([1.0, 2.0, 3.0, 4.0])
+        groups = np.array(["a", "b", "c", "d"])
+        result = group_error_intervals(y, y.copy(), groups, seed=0)
+        self.assertEqual(result["mae"]["estimate"], 0.0)
+        self.assertEqual(result["mae"]["ci95"], [0.0, 0.0])
+
+    def test_malformed_interval_inputs_are_rejected(self):
+        y = np.array([1.0, 2.0])
+        for predictions, groups in (
+            (np.array([1.0]), np.array(["a", "b"])),
+            (np.array([1.0, 2.0]), np.array(["a"])),
+            (np.array([1.0, np.nan]), np.array(["a", "b"])),
+            (np.array([]), np.array([])),
+        ):
+            with self.subTest(predictions=predictions, groups=groups):
+                with self.assertRaises(ValueError):
+                    group_error_intervals(y if len(y) == len(predictions) else y, predictions, groups)
+
+    def test_paired_comparison_uses_the_same_groups_and_excludes_the_baseline(self):
+        y = np.array([0.0, 0.0, 0.0, 0.0])
+        groups = np.array(["a", "b", "c", "d"])
+        predictions = {
+            "mean_baseline": np.array([4.0, 4.0, 4.0, 4.0]),
+            "ridge": np.array([1.0, 1.0, 1.0, 1.0]),
+            "worse": np.array([9.0, 9.0, 9.0, 9.0]),
+        }
+        result = paired_group_error_comparisons(y, predictions, groups, seed=0)
+        self.assertEqual(result["baseline_model"], "mean_baseline")
+        self.assertNotIn("mean_baseline", result["models"])
+        self.assertTrue(result["negative_difference_favors_candidate"])
+        self.assertAlmostEqual(result["models"]["ridge"]["mae"]["estimate_difference"], -3.0)
+        self.assertAlmostEqual(result["models"]["worse"]["mae"]["estimate_difference"], 5.0)
+        low, high = result["models"]["ridge"]["mae"]["ci95"]
+        self.assertLess(high, 0.0)
+        self.assertLessEqual(low, high)
+
+    def test_paired_comparison_withholds_intervals_below_three_groups(self):
+        y = np.array([0.0, 0.0])
+        groups = np.array(["a", "b"])
+        result = paired_group_error_comparisons(
+            y, {"mean_baseline": np.array([2.0, 2.0]), "ridge": np.array([1.0, 1.0])}, groups)
+        self.assertFalse(result["interval_available"])
+        self.assertIsNone(result["models"]["ridge"]["mae"]["ci95"])
+        self.assertAlmostEqual(result["models"]["ridge"]["mae"]["estimate_difference"], -1.0)
+
+    def test_paired_comparison_validates_baseline_and_shapes(self):
+        y = np.array([0.0, 0.0, 0.0])
+        groups = np.array(["a", "b", "c"])
+        with self.assertRaisesRegex(ValueError, "baseline"):
+            paired_group_error_comparisons(y, {"ridge": np.zeros(3)}, groups)
+        with self.assertRaisesRegex(ValueError, "matched and finite"):
+            paired_group_error_comparisons(
+                y, {"mean_baseline": np.zeros(3), "ridge": np.array([0.0, np.nan, 0.0])}, groups)
+
+    def test_evaluation_report_carries_intervals_and_honest_warnings(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        path = Path(tmp.name) / "features.csv"
+        with path.open("w", newline="") as handle:
+            writer = csv.writer(handle)
+            writer.writerow(["sample_id", "target", "source_well", "f_signal"])
+            for group in range(4):
+                for i in range(5):
+                    x = group * 10 + i
+                    writer.writerow([f"{group}-{i}", 2 * x + 1, f"well{group}", x])
+        data = load_table(path, ["source_well"], task="regression")
+        report, _rows = evaluate_regression(data, seed=0)
+
+        intervals = report["models"]["ridge"]["group_error_intervals"]
+        self.assertEqual(intervals["n_groups"], 4)
+        self.assertTrue(intervals["interval_available"])
+        self.assertEqual(len(intervals["mae"]["ci95"]), 2)
+        self.assertEqual(len(intervals["rmse"]["ci95"]), 2)
+        paired = report["paired_group_error_comparisons"]
+        self.assertEqual(paired["baseline_model"], "mean_baseline")
+        self.assertIn("ridge", paired["models"])
+        self.assertTrue(any("not row bootstraps" in warning for warning in report["warnings"]))
+        self.assertTrue(any("wide and unstable" in warning for warning in report["warnings"]))
+        json.dumps(report, allow_nan=False)
+
+    def test_two_group_evaluation_reports_no_interval_and_explains(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        path = Path(tmp.name) / "features.csv"
+        with path.open("w", newline="") as handle:
+            writer = csv.writer(handle)
+            writer.writerow(["sample_id", "target", "source_well", "f_signal"])
+            for group in range(2):
+                for i in range(5):
+                    x = group * 10 + i
+                    writer.writerow([f"{group}-{i}", 2 * x + 1, f"well{group}", x])
+        data = load_table(path, ["source_well"], task="regression")
+        report, _rows = evaluate_regression(data, seed=0)
+        intervals = report["models"]["ridge"]["group_error_intervals"]
+        self.assertFalse(intervals["interval_available"])
+        self.assertIsNone(intervals["mae"]["ci95"])
+        self.assertFalse(report["paired_group_error_comparisons"]["interval_available"])
+        self.assertTrue(any("no interval is reported" in warning for warning in report["warnings"]))

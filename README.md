@@ -138,7 +138,25 @@ are required. Leave-one-group-out is the default; `--folds N` uses GroupKFold.
 - MAE, RMSE, R², signed error, per-group errors and equal-group MAE.
 - Per-fold feature importance export (`feature_importances.csv`) and top feature summary in `REPORT.md`.
 - No target-range clipping; negative predictions remain visible.
-- No regression confidence intervals. Constant-target R² is reported as undefined.
+- Equal-group-weighted MAE and RMSE with a 95% percentile bootstrap over whole
+  groups, reported per model as `group_error_intervals`. Each group's error is
+  computed before resampling, so a group with nine rows and a group with one row
+  weigh the same. Fewer than three groups reports no interval and records the
+  reason instead.
+- Paired equal-group bootstrap differences against the training-fold mean
+  baseline (`paired_group_error_comparisons`), using the same resampled groups
+  for every model. Negative values favor the candidate because both quantities
+  are errors.
+- Constant-target R² is reported as undefined.
+
+The regression bootstrap conditions on the already fitted out-of-fold
+predictions. It does not refit models, carries no uncertainty from model
+selection, and is not a row bootstrap: resampling rows inside a well would
+describe that well, not a new well. With only a few groups the interval is wide
+and unstable, and the report says so; read it as a spread across the available
+groups, not a population interval. The committed `examples/nist_ipsc/results/`
+snapshot predates these fields — re-running the command below emits them, and the
+three-well metrics are unchanged.
 
 Regression uses the same connected grouping and input provenance as
 classification. The report records settings, versions, folds and unblocked
