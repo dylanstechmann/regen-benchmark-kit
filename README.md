@@ -43,6 +43,7 @@ regenbench run examples/synthetic_features.csv \
 
 Open `artifacts/demo/REPORT.md` for the summary, `metrics.json` for full fold
 metrics and software versions, and `predictions.csv` to inspect errors.
+Since 2026-10-08 both `run` and `regress` write `task` and `group_metadata` (the source-column values behind each group pseudonym) into `metrics.json`, which is what regen-workbench's `regenbench-metrics/1` adapter reads. The already-committed example reports were produced before this and are not regenerated.
 Output directories must be new: earlier results are never silently overwritten.
 The checked-in [example report](examples/results/REPORT.md) is **synthetic**.
 

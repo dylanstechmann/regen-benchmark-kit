@@ -238,8 +238,13 @@ def evaluate(data: Dataset, *, folds=5, seed=0, bootstrap_draws=2000):
         if fold_imps:
             mean_importances[name] = {feat: float(np.mean([fi[feat] for fi in fold_imps]))
                                       for feat in data.features}
+    group_metadata = {str(group): {column: sorted({row[column] for i, row in enumerate(data.rows)
+                                                   if data.groups[i] == group})
+                                   for column in data.group_columns}
+                      for group in np.unique(data.groups)}
     report = {
-        "schema_version": 1, "dataset_sha256": data.sha256,
+        "schema_version": 1, "task": "classification", "dataset_sha256": data.sha256,
+        "group_metadata": group_metadata,
         "configuration": {"folds": folds, "seed": seed, "group_by": data.group_columns,
                           "bootstrap_draws": bootstrap_draws, "features": data.features,
                           "logistic_C": 1.0, "logistic_class_weight": "balanced",

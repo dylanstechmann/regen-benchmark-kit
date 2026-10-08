@@ -55,11 +55,15 @@ class WorkbenchContractTests(unittest.TestCase):
             self.assertTrue(set(fold["train_groups"]) | set(fold["test_groups"]) <= known)
             self.assertFalse(set(fold["train_groups"]) & set(fold["test_groups"]))
 
-    def test_classification_run_reports_lack_the_adapter_fields(self):
-        # Recorded finding (2026-10-08): only `regress` reports carry `task` and `group_metadata`,
-        # so the workbench adapter cannot read a classification `run` report yet.
-        self.assertNotIn("group_metadata", self.classification)
-        self.assertNotIn("task", self.classification)
+    def test_classification_run_reports_carry_the_adapter_fields_too(self):
+        # Added 2026-10-08 after the first version of this test found they were missing.
+        for key in REQUIRED:
+            self.assertIn(key, self.classification)
+        self.assertEqual(self.classification["task"], "classification")
+        known = set(self.classification["group_metadata"])
+        for fold in self.classification["folds"]:
+            self.assertTrue(set(fold["train_groups"]) | set(fold["test_groups"]) <= known)
+        self.assertTrue(self.classification["group_metadata"][sorted(known)[0]]["donor_id"][0].startswith("d"))
 
     @unittest.skipUnless(ADAPTER.is_file(), "sibling regen-workbench checkout not present")
     def test_workbench_adapter_accepts_the_report(self):
@@ -72,10 +76,11 @@ class WorkbenchContractTests(unittest.TestCase):
             spec.loader.exec_module(module)
         finally:
             sys.dont_write_bytecode = previous
-        normalized = module.adapt_regenbench_metrics(self.report)
-        self.assertEqual(normalized["adapter"], "regenbench-metrics/1")
-        self.assertEqual(normalized["input_sha256"], [self.report["dataset_sha256"]])
-        self.assertEqual(len(normalized["folds"]), len(self.report["folds"]))
+        for report in (self.report, self.classification):
+            normalized = module.adapt_regenbench_metrics(report)
+            self.assertEqual(normalized["adapter"], "regenbench-metrics/1")
+            self.assertEqual(normalized["input_sha256"], [report["dataset_sha256"]])
+            self.assertEqual(len(normalized["folds"]), len(report["folds"]))
 
 
 if __name__ == "__main__":
